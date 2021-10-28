@@ -9,17 +9,22 @@ sio = socketio.AsyncServer(cors_allowed_origins='*')
 app = web.Application()
 sio.attach(app)
 
+player_id_map = {}
+
 @sio.event
 def connect(sid, environ):
   print("connect ", sid)
+  player_id_map[sid] = len(player_id_map)
+  game.new_player(player_id_map[sid])
 
 @sio.event
 async def key_pressed(sid, data):
-  game.key_pressed(data)
+  game.key_pressed(player_id_map[sid], data)
 
 @sio.event
 def disconnect(sid):
   print("disconnect", sid)
+  game.remove_player(player_id_map[sid])
 
 def run(config):
   global game # spaghetti

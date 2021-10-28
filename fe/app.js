@@ -11,19 +11,26 @@ const vertexShaderText = [
 
 const fragmentShaderText = [
   'precision mediump float;',
+  'uniform vec3 uColour;',
   'void main() {',
-  '  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);',
+  '  gl_FragColor = vec4(uColour, 1.0);',
   '}',
 ].join('\n');
 
 const keys = {};
 let entities = [];
+let colours = [
+  new Float32Array([1., 0., 0.]),
+  new Float32Array([0., 0.6, 0.]),
+  new Float32Array([0., 0., 0.9]),
+];
 
 class Entity {
-  constructor(x, y) {
+  constructor(x, y, spriteID) {
     this.x = x;
     this.y = y;
-    this.scale = 0.5 // TODO: delete all mentions of scale once sprites are introduced
+    this.spriteID = spriteID;
+    this.scale = 1.0 // TODO: delete all mentions of scale once sprites are introduced
   }
   MVP() {
     let M = mat3.create()
@@ -102,18 +109,17 @@ const init = () => {
   // init Player
   const updateEntities = (e) => {
     entities = e.map(tup => new Entity(...tup));
-    entities[0].scale = 1.0;
   };
 
   const bufferObject = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, bufferObject);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-     0.1,  0.1,
-     0.1, -0.1,
-    -0.1, -0.1,
-     0.1,  0.1,
-    -0.1,  0.1,
-    -0.1, -0.1,
+     0.05,  0.05,
+     0.05, -0.05,
+    -0.05, -0.05,
+     0.05,  0.05,
+    -0.05,  0.05,
+    -0.05, -0.05,
   ]) , gl.STATIC_DRAW);
 
   const posAttr = gl.getAttribLocation(program, 'pos');
@@ -128,6 +134,7 @@ const init = () => {
   gl.enableVertexAttribArray(posAttr);
 
   const uMVP = gl.getUniformLocation(program, 'uMVP');
+  const uColour = gl.getUniformLocation(program, 'uColour');
 
   const render = () => {
     sock.emit('key_pressed', keys);
@@ -137,6 +144,7 @@ const init = () => {
 
     entities.forEach(entity => {
       gl.uniformMatrix3fv(uMVP, gl.False, entity.MVP());
+      gl.uniform3fv(uColour, colours[entity.spriteID]);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     })
   };
@@ -156,7 +164,9 @@ const init = () => {
   };
 
   // connect to server
-  var sock = io.connect('http://localhost:6942');
+  let ip = prompt('Type IP here')
+  if (!ip) ip = 'localhost';
+  var sock = io.connect('http://' + ip + ':6942');
 
   sock.on("connect", () => requestAnimationFrame(loop));
   sock.on("update", updateEntities);
