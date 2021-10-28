@@ -1,8 +1,11 @@
+const { mat3 } = glMatrix;
+
 const vertexShaderText = [
   'precision mediump float;',
-  'attribute vec2 vertPosition;',
+  'attribute vec2 pos;',
+  'uniform mat3 uMVP;',
   'void main() {',
-  '  gl_Position = vec4(vertPosition, 0.0, 1.0);',
+  '  gl_Position = vec4((uMVP * vec3(pos, 1.0)).xy, 0.0, 1.0);',
   '}',
 ].join('\n');
 
@@ -14,24 +17,22 @@ const fragmentShaderText = [
 ].join('\n');
 
 const keys = {};
+let entities = [];
 
-class Player {
-  constructor() {
-    this.x = 0;
-    this.y = 0;
-    this.vertices = new Float32Array([
-      this.x, this.y + 0.1,
-      this.x - 0.1, this.y - 0.1,
-      this.x + 0.1, this.y - 0.1,
-    ]);
+class Entity {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.scale = 0.5 // TODO: delete all mentions of scale once sprites are introduced
+  }
+  MVP() {
+    let M = mat3.create()
+    mat3.translate(M, M, [this.x, this.y]);
+    mat3.scale(M, M, [600./800, 1.0, 1.0]);
+    mat3.scale(M, M, [this.scale, this.scale, 1.0]);
+    return M
   }
   render() {
-    this.vertices[0] = this.x;
-    this.vertices[1] = this.y + 0.1;
-    this.vertices[2] = this.x - 0.1;
-    this.vertices[3] = this.y - 0.1;
-    this.vertices[4] = this.x + 0.1;
-    this.vertices[5] = this.y - 0.1;
   }
 };
 
@@ -90,6 +91,7 @@ const init = () => {
   // init key events
   window.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
+    console.log(key)
     keys[key] = true;
   });
   window.addEventListener('keyup', event => {
@@ -98,40 +100,45 @@ const init = () => {
   });
 
   // init Player
-  const player = new Player();
-
-  const updatePlayer = (x, y) => {
-    player.x = x;
-    player.y = y;
-    console.log(x, y);
+  const updateEntities = (e) => {
+    entities = e.map(tup => new Entity(...tup));
+    entities[0].scale = 1.0;
   };
 
   const bufferObject = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, bufferObject);
-  gl.bufferData(gl.ARRAY_BUFFER, player.vertices, gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+     0.1,  0.1,
+     0.1, -0.1,
+    -0.1, -0.1,
+     0.1,  0.1,
+    -0.1,  0.1,
+    -0.1, -0.1,
+  ]) , gl.STATIC_DRAW);
 
-  const positionAttrLocation = gl.getAttribLocation(program, 'vertPosition');
+  const posAttr = gl.getAttribLocation(program, 'pos');
   gl.vertexAttribPointer(
-    positionAttrLocation,
+    posAttr,
     2,
     gl.FLOAT,
     gl.FALSE,
     2 * Float32Array.BYTES_PER_ELEMENT,
     0,
   );
-  gl.enableVertexAttribArray(positionAttrLocation);
+  gl.enableVertexAttribArray(posAttr);
+
+  const uMVP = gl.getUniformLocation(program, 'uMVP');
 
   const render = () => {
     sock.emit('key_pressed', keys);
 
-    player.render();
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufferObject);
-    gl.bufferData(gl.ARRAY_BUFFER, player.vertices, gl.STATIC_DRAW);
-
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    entities.forEach(entity => {
+      gl.uniformMatrix3fv(uMVP, gl.False, entity.MVP());
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    })
   };
 
   let running = true;
@@ -152,6 +159,6 @@ const init = () => {
   var sock = io.connect('http://localhost:6942');
 
   sock.on("connect", () => requestAnimationFrame(loop));
-  sock.on("update", updatePlayer);
+  sock.on("update", updateEntities);
 };
 
