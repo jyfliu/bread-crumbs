@@ -26,17 +26,18 @@ let colours = [
 ];
 
 class Entity {
-  constructor(x, y, spriteID) {
+  constructor(x, y, w, h, spriteID) {
     this.x = x;
     this.y = y;
+    this.w = w
+    this.h = h
     this.spriteID = spriteID;
-    this.scale = 1.0 // TODO: delete all mentions of scale once sprites are introduced
   }
   MVP() {
     let M = mat3.create()
     mat3.translate(M, M, [this.x, this.y]);
     mat3.scale(M, M, [600./800, 1.0, 1.0]);
-    mat3.scale(M, M, [this.scale, this.scale, 1.0]);
+    mat3.scale(M, M, [this.w, this.h, 1.0]);
     return M
   }
   render() {
@@ -114,12 +115,12 @@ const init = () => {
   const bufferObject = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, bufferObject);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-     0.05,  0.05,
-     0.05, -0.05,
-    -0.05, -0.05,
-     0.05,  0.05,
-    -0.05,  0.05,
-    -0.05, -0.05,
+     1,  1,
+     1, -1,
+    -1, -1,
+     1,  1,
+    -1,  1,
+    -1, -1,
   ]) , gl.STATIC_DRAW);
 
   const posAttr = gl.getAttribLocation(program, 'pos');
