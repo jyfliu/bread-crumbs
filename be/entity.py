@@ -1,4 +1,4 @@
-from game import *
+import weapon
 
 class Entity:
 
@@ -40,20 +40,22 @@ class Player(Entity): # TODO move this
     # position
     self.x = 0.
     self.y = 0.
-    self.w = 0.05
-    self.h = 0.05
+    self.w = 0.5
+    self.h = 0.5
     # movement
     self.dx = 0
     self.dy = 0
     self.pressed = {key: False for key in ['w', 'a', 's', 'd']}
-    self.speed = 0.6
+    self.speed = 7.2
     # rolling
     self.roll_cooldown = 0
-    self.max_roll_cooldown = 60
+    self.max_roll_cooldown = 50
     self.roll_duration = 8
     # shooting
-    self.shoot_cooldown = 0
-    self.max_shoot_cooldown = 20
+    # (for now carry multiple weapons. this may change)
+    self.weapons = [Weapon(game, self) for Weapon in weapon.weapons]
+    self.cur_weapon_idx = 0
+    self.cur_weapon = self.weapons[self.cur_weapon_idx]
     # combat
     self.hp = 100
     self.flash_cooldown = 0 # tmp: damage flash demo purposes
@@ -61,8 +63,12 @@ class Player(Entity): # TODO move this
     self.sprite_id = 1 + player_id % 2
     # game stuff
     self.keys = {}
+    self.last_keys = {}
     self.player_id = player_id
     self.game = game
+
+  def released(self, key):
+    return key in self.last_keys and key not in self.keys
 
   def compute_reactive_wasd(self, key_p, key_n):
     # accepts key_p (key in positive dir) and key_n (key in negative dir)
@@ -108,11 +114,14 @@ class Player(Entity): # TODO move this
     self.dx *= mult
     self.dy *= mult
 
+  def is_rolling(self):
+    return self.max_roll_cooldown - self.roll_cooldown <= self.roll_duration
+
   def move(self, delta):
     if self.roll_cooldown:
       self.roll_cooldown -= 1
 
-    if self.max_roll_cooldown - self.roll_cooldown <= self.roll_duration:
+    if self.is_rolling():
       # we are still rolling
       pass
     else:
@@ -122,9 +131,6 @@ class Player(Entity): # TODO move this
     self.y += delta * self.dy
 
   def shoot(self):
-    if self.shoot_cooldown:
-      self.shoot_cooldown -= 1
-      return
     shoot_dx = 0
     shoot_dy = 0
     if 'arrowup'    in self.keys:
@@ -136,18 +142,11 @@ class Player(Entity): # TODO move this
     if 'arrowright' in self.keys:
       shoot_dx += 1
 
-    if (shoot_dx + shoot_dy) % 2:
-      # shoot if exactly one key is pressed (no diagonal shooting)
-      self.game.add_entity(Bullet(
-        self.game, self,
-        self.x, self.y,
-        (shoot_dx, shoot_dy),
-        # impart momentum in the direction we are not firing
-        (self.dx if shoot_dy else 0, self.dy if shoot_dx else 0)
-      ))
-      self.shoot_cooldown = self.max_shoot_cooldown
+    self.cur_weapon.use(shoot_dx, shoot_dy)
 
   def damage(self, dmg):
+    if self.is_rolling():
+      return False
     self.hp -= dmg
     # tmp: damage flash for demp purposes
     self.sprite_id = 0
@@ -158,25 +157,33 @@ class Player(Entity): # TODO move this
     self.move(delta)
     self.shoot()
 
+    # tmp: switch weapon for demo purposes
+    if self.released(' '):
+      self.cur_weapon_idx += 1
+      self.cur_weapon_idx %= len(self.weapons)
+      self.cur_weapon = self.weapons[self.cur_weapon_idx]
+
     # tmp: damage flash for demo purposes
     if self.flash_cooldown == 0:
       self.sprite_id = 1 + self.player_id % 2
     else:
       self.flash_cooldown -= 1
 
+    self.last_keys = self.keys
+
 class Bullet(Entity):
 
   def __init__(self, game, src, x, y, dir, momentum=(0, 0)):
     self.x = x
     self.y = y
-    self.w = 0.025
-    self.h = 0.025
+    self.w = 0.25
+    self.h = 0.25
     self.dx, self.dy = dir
     self.mx, self.my = momentum
     # game info
-    self.speed = 2.5
+    self.speed = 25
     self.dmg = 5 # do 5 damage
-    self.lifespan = 120
+    self.lifespan = 12000000000000000000000
     # graphics
     self.sprite_id = 0
     # misc

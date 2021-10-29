@@ -30,15 +30,21 @@ class Entity {
   constructor(x, y, w, h, spriteID) {
     this.x = x;
     this.y = y;
-    this.w = w
-    this.h = h
+    this.w = w;
+    this.h = h;
     this.spriteID = spriteID;
   }
   MVP() {
     let M = mat3.create()
-    mat3.translate(M, M, [this.x, this.y]);
-    mat3.scale(M, M, [600./800, 1.0, 1.0]);
-    mat3.scale(M, M, [this.w, this.h, 1.0]);
+    // note function application order is backwards
+    // TODO move magic numbers. The meanings are
+    // 600/800 is the aspect ratio
+    // 20 is half of the number of units we want to display on our screen
+    // (so our current view is from cam.x-20 to cam.x+20 units)
+    mat3.scale(M, M, [600./800/10, 1./10, 1.0]); // project to screen position
+    // mat3.translate(M, M, [-cam.x, -cam.y]); // translate model to camera position
+    mat3.translate(M, M, [this.x, this.y]); // translate model to world position
+    mat3.scale(M, M, [this.w, this.h, 1.0]); // scale model to correct size
     return M
   }
   render() {
@@ -171,7 +177,6 @@ const init = () => {
   });
   sock.on("health", elist => {
     healths = elist.map(tup => tup[4]);
-    console.log(healths)
     document.getElementById("tmphealthbar").innerHTML = "HP: " + healths.join(', ') + ". ";
   });
 };

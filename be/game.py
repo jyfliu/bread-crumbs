@@ -5,7 +5,7 @@ import random
 import server as se
 import aabb
 
-from entity import *
+import entity
 
 class Game:
 
@@ -19,9 +19,17 @@ class Game:
     self.add_entities_buffer = set()
     self.remove_entities_buffer = set()
     self.keys = set()
+    # self.add_entity(entity.Bullet(self, None, 1, 0, (0, 0)))
+    # self.add_entity(entity.Bullet(self, None, 0, 1, (0, 0)))
+    # self.add_entity(entity.Bullet(self, None, -1, 0, (0, 0)))
+    # self.add_entity(entity.Bullet(self, None, 0, -1, (0, 0)))
+    # self.add_entity(entity.Bullet(self, None, 1, 1, (0, 0)))
+    # self.add_entity(entity.Bullet(self, None, -1, 1, (0, 0)))
+    # self.add_entity(entity.Bullet(self, None, 1, -1, (0, 0)))
+    # self.add_entity(entity.Bullet(self, None, -1, -1, (0, 0)))
 
   def new_player(self, player_id):
-    self.players[player_id] = Player(self, player_id)
+    self.players[player_id] = entity.Player(self, player_id)
     self.add_entity(self.players[player_id])
 
   def remove_player(self, player_id):
@@ -34,13 +42,19 @@ class Game:
   def remove_entity(self, entity):
     self.remove_entities_buffer.add(entity)
 
-  def flush_entities_buffer(self):
+  def flush_add_entities_buffer(self):
     self.entities |= self.add_entities_buffer
+    self.add_entities_buffer.clear()
+
+  def flush_remove_entities_buffer(self):
     for entity in self.remove_entities_buffer:
       if entity in self.entities:
         self.entities.remove(entity)
-    self.add_entities_buffer.clear()
     self.remove_entities_buffer.clear()
+
+  def flush_entities_buffer(self):
+    self.flush_add_entities_buffer()
+    self.flush_remove_entities_buffer()
 
   def key_pressed(self, player_id, keys):
     self.players[player_id].keys = {key for key, val in keys.items() if val == True}
@@ -49,7 +63,9 @@ class Game:
     self.flush_entities_buffer()
     for entity in self.entities:
       entity.tick(delta)
-    self.flush_entities_buffer()
+    # only flush add entities buffer here
+    # this way, entities that only live for 1 frame will be displayed temporarily
+    self.flush_add_entities_buffer()
     for entity in self.entities:
       entity.update_aabb()
     for e1 in self.entities:
@@ -62,7 +78,6 @@ class Game:
             e2.aabb_x, e2.aabb_y, e2.aabb_w, e2.aabb_h,
         ):
           e1.collide(e2)
-    self.flush_entities_buffer()
     await se.sio.emit('update',
       [(e.x, e.y, e.w, e.h, e.sprite_id) for e in self.entities]
     )
