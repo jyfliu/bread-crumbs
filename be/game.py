@@ -66,6 +66,10 @@ class Game:
     await se.sio.emit('update',
       [(e.x, e.y, e.w, e.h, e.sprite_id) for e in self.entities]
     )
+    await se.sio.emit('health',
+      # hasattr sketch?
+      [(e.x, e.y, e.w, e.h, e.hp) for e in self.entities if hasattr(e, 'hp')]
+    )
 
   async def game_loop(self):
     # all times in seconds

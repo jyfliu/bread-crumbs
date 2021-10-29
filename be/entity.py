@@ -56,6 +56,7 @@ class Player(Entity): # TODO move this
     self.max_shoot_cooldown = 20
     # combat
     self.hp = 100
+    self.flash_cooldown = 0 # tmp: damage flash demo purposes
     # graphics
     self.sprite_id = 1 + player_id % 2
     # game stuff
@@ -148,12 +149,20 @@ class Player(Entity): # TODO move this
 
   def damage(self, dmg):
     self.hp -= dmg
-    self.sprite_id = 3 - self.sprite_id
+    # tmp: damage flash for demp purposes
+    self.sprite_id = 0
+    self.flash_cooldown = 5
     return True
 
   def tick(self, delta):
     self.move(delta)
     self.shoot()
+
+    # tmp: damage flash for demo purposes
+    if self.flash_cooldown == 0:
+      self.sprite_id = 1 + self.player_id % 2
+    else:
+      self.flash_cooldown -= 1
 
 class Bullet(Entity):
 

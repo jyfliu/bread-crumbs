@@ -19,6 +19,7 @@ const fragmentShaderText = [
 
 const keys = {};
 let entities = [];
+let healths = [];
 let colours = [
   new Float32Array([1., 0., 0.]),
   new Float32Array([0., 0.6, 0.]),
@@ -107,11 +108,6 @@ const init = () => {
     keys[key] = false;
   });
 
-  // init Player
-  const updateEntities = (e) => {
-    entities = e.map(tup => new Entity(...tup));
-  };
-
   const bufferObject = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, bufferObject);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
@@ -170,6 +166,13 @@ const init = () => {
   var sock = io.connect('http://' + ip + ':6942');
 
   sock.on("connect", () => requestAnimationFrame(loop));
-  sock.on("update", updateEntities);
+  sock.on("update", elist => {
+    entities = elist.map(tup => new Entity(...tup));
+  });
+  sock.on("health", elist => {
+    healths = elist.map(tup => tup[4]);
+    console.log(healths)
+    document.getElementById("tmphealthbar").innerHTML = "HP: " + healths.join(', ') + ". ";
+  });
 };
 
