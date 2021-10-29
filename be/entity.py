@@ -1,4 +1,5 @@
 import weapon
+import keys
 
 class Entity:
 
@@ -45,7 +46,7 @@ class Player(Entity): # TODO move this
     # movement
     self.dx = 0
     self.dy = 0
-    self.pressed = {key: False for key in ['w', 'a', 's', 'd']}
+    self.wasd_pressed = {key: False for key in ['w', 'a', 's', 'd']}
     self.speed = 7.2
     # rolling
     self.roll_cooldown = 0
@@ -62,39 +63,35 @@ class Player(Entity): # TODO move this
     # graphics
     self.sprite_id = 1 + player_id % 2
     # game stuff
-    self.keys = {}
-    self.last_keys = {}
+    self.keys = keys.Keys()
     self.player_id = player_id
     self.game = game
-
-  def released(self, key):
-    return key in self.last_keys and key not in self.keys
 
   def compute_reactive_wasd(self, key_p, key_n):
     # accepts key_p (key in positive dir) and key_n (key in negative dir)
     # if two opposite keys are pressed at the same time, then prefer to go
-    # in the direction that was NOT last pressed (ie., that self.pressed[key]=False)
-    if key_p in self.keys and key_n in self.keys:
+    # in the direction that was NOT last pressed (ie., that self.wasd_pressed[key]=False)
+    if self.keys.pressed(key_p) and self.keys.pressed(key_n):
       # if both pressed then go in the opposite direction currently going
-      if self.pressed[key_p]:
+      if self.wasd_pressed[key_p]:
         return -1
-      elif self.pressed[key_n]:
+      elif self.wasd_pressed[key_n]:
         return +1
       else:
         # if its a tie, then prefer to go up and right (to the positive dir)
-        self.pressed[key_n] = True
+        self.wasd_pressed[key_n] = True
         return +1
-    elif key_p in self.keys:
-      self.pressed[key_p] = True
-      self.pressed[key_n] = False
+    elif self.keys.pressed(key_p):
+      self.wasd_pressed[key_p] = True
+      self.wasd_pressed[key_n] = False
       return +1
-    elif key_n in self.keys:
-      self.pressed[key_p] = False
-      self.pressed[key_n] = True
+    elif self.keys.pressed(key_n):
+      self.wasd_pressed[key_p] = False
+      self.wasd_pressed[key_n] = True
       return -1
     else:
-      self.pressed[key_p] = False
-      self.pressed[key_n] = False
+      self.wasd_pressed[key_p] = False
+      self.wasd_pressed[key_n] = False
       return 0
 
   def compute_wasd(self):
@@ -103,7 +100,7 @@ class Player(Entity): # TODO move this
     self.dy = self.compute_reactive_wasd('w', 's')
 
     mult = self.speed
-    if 'shift' in self.keys and not self.roll_cooldown and (self.dx or self.dy):
+    if self.keys.pressed('shift') and not self.roll_cooldown and (self.dx or self.dy):
       mult *= 3.
       self.roll_cooldown = self.max_roll_cooldown
 
@@ -133,13 +130,13 @@ class Player(Entity): # TODO move this
   def shoot(self):
     shoot_dx = 0
     shoot_dy = 0
-    if 'arrowup'    in self.keys:
+    if self.keys.pressed('arrowup'):
       shoot_dy += 1
-    if 'arrowleft'  in self.keys:
+    if self.keys.pressed('arrowleft'):
       shoot_dx -= 1
-    if 'arrowdown'  in self.keys:
+    if self.keys.pressed('arrowdown'):
       shoot_dy -= 1
-    if 'arrowright' in self.keys:
+    if self.keys.pressed('arrowright'):
       shoot_dx += 1
 
     self.cur_weapon.use(shoot_dx, shoot_dy)
@@ -158,7 +155,7 @@ class Player(Entity): # TODO move this
     self.shoot()
 
     # tmp: switch weapon for demo purposes
-    if self.released(' '):
+    if self.keys.released(' '):
       self.cur_weapon_idx += 1
       self.cur_weapon_idx %= len(self.weapons)
       self.cur_weapon = self.weapons[self.cur_weapon_idx]
@@ -169,7 +166,6 @@ class Player(Entity): # TODO move this
     else:
       self.flash_cooldown -= 1
 
-    self.last_keys = self.keys
 
 class Bullet(Entity):
 

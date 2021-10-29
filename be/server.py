@@ -18,8 +18,8 @@ def connect(sid, environ):
   game.new_player(player_id_map[sid])
 
 @sio.event
-async def key_pressed(sid, data):
-  game.key_pressed(player_id_map[sid], data)
+async def update_keys(sid, data):
+  game.update_player_keys(player_id_map[sid], data)
 
 @sio.event
 def disconnect(sid):

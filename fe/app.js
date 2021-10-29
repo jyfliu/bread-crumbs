@@ -140,7 +140,7 @@ const init = () => {
   const uColour = gl.getUniformLocation(program, 'uColour');
 
   const render = () => {
-    sock.emit('key_pressed', keys);
+    sock.emit('update_keys', keys);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);

@@ -18,15 +18,6 @@ class Game:
     # current tick is over
     self.add_entities_buffer = set()
     self.remove_entities_buffer = set()
-    self.keys = set()
-    # self.add_entity(entity.Bullet(self, None, 1, 0, (0, 0)))
-    # self.add_entity(entity.Bullet(self, None, 0, 1, (0, 0)))
-    # self.add_entity(entity.Bullet(self, None, -1, 0, (0, 0)))
-    # self.add_entity(entity.Bullet(self, None, 0, -1, (0, 0)))
-    # self.add_entity(entity.Bullet(self, None, 1, 1, (0, 0)))
-    # self.add_entity(entity.Bullet(self, None, -1, 1, (0, 0)))
-    # self.add_entity(entity.Bullet(self, None, 1, -1, (0, 0)))
-    # self.add_entity(entity.Bullet(self, None, -1, -1, (0, 0)))
 
   def new_player(self, player_id):
     self.players[player_id] = entity.Player(self, player_id)
@@ -56,8 +47,10 @@ class Game:
     self.flush_add_entities_buffer()
     self.flush_remove_entities_buffer()
 
-  def key_pressed(self, player_id, keys):
-    self.players[player_id].keys = {key for key, val in keys.items() if val == True}
+  def update_player_keys(self, player_id, keys):
+    self.players[player_id].keys.update(
+      {key for key, val in keys.items() if val == True}
+    )
 
   async def tick(self, delta):
     self.flush_entities_buffer()
@@ -78,6 +71,9 @@ class Game:
             e2.aabb_x, e2.aabb_y, e2.aabb_w, e2.aabb_h,
         ):
           e1.collide(e2)
+    # tick player i/o
+    for player in self.players.values():
+      player.keys.tick()
     await se.sio.emit('update',
       [(e.x, e.y, e.w, e.h, e.sprite_id) for e in self.entities]
     )
