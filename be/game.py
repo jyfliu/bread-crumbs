@@ -31,21 +31,23 @@ class Game:
         return 3
     self.world = world.World(arr, to_colour)
 
-    self.players = {}
     self.entities = set()
     # since we cannot modify a set while we iterate over it,
     # we buffer all changes we would like to make to a set until after the
     # current tick is over
     self.add_entities_buffer = set()
     self.remove_entities_buffer = set()
+    self.players = {}
+    self.add_players_buffer = []
+    self.remove_players_buffer = []
 
   def new_player(self, player_id):
-    self.players[player_id] = entity.Player(self, player_id)
-    self.add_entity(self.players[player_id])
+    player = entity.Player(self, player_id)
+    self.add_players_buffer.append(player)
+    self.add_entity(player)
 
   def remove_player(self, player_id):
-    player = self.players.pop(player_id)
-    self.remove_entity(player)
+    self.remove_players_buffer.append(player_id)
 
   def add_entity(self, entity):
     self.add_entities_buffer.add(entity)
@@ -57,11 +59,22 @@ class Game:
     self.entities |= self.add_entities_buffer
     self.add_entities_buffer.clear()
 
+    for player in self.add_players_buffer:
+      self.players[player.player_id] = player
+    self.add_players_buffer.clear()
+
   def flush_remove_entities_buffer(self):
     for entity in self.remove_entities_buffer:
       if entity in self.entities:
         self.entities.remove(entity)
     self.remove_entities_buffer.clear()
+
+    for player_id in self.remove_players_buffer:
+      player = self.players[player_id]
+      if player in self.entities:
+        self.entities.remove(player)
+      self.players.pop(player_id)
+    self.remove_players_buffer.clear()
 
   def flush_entities_buffer(self):
     self.flush_add_entities_buffer()
@@ -104,9 +117,16 @@ class Game:
     # tick player i/o
     for player in self.players.values():
       player.keys.tick()
-    await se.sio.emit('update',
-      [(e.x, e.y, e.w, e.h, e.sprite_id) for e in self.entities]
-    )
+    entity_list = list(self.entities)
+    entity_data = [[e.x, e.y, e.w, e.h, e.sprite_id, False] for e in entity_list]
+    for i, entity in enumerate(entity_list):
+      if hasattr(entity, 'player_id'):
+        entity_data[i][5] = True
+        await se.sio.emit('entities',
+          entity_data,
+          room=se.player_id_map_inv[entity.player_id],
+        )
+        entity_data[i][5] = False
     await se.sio.emit('health',
       # hasattr sketch?
       [(e.x, e.y, e.w, e.h, e.hp) for e in self.entities if hasattr(e, 'hp')]

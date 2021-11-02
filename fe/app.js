@@ -33,20 +33,27 @@ let colours = [
   new Float32Array([0.1451, 0.2078, 0.1608]),
   new Float32Array([0.1176, 0.1646, 0.1294]),
 ];
-let camX = 5.;
-let camY = 5.;
+let camX = 0.;
+let camY = 0.;
+const camSpeed = 0.1;
+let playerX = 0.;
+let playerY = 0.;
 const aspectRatio = 800./600; // TODO query this from the page
 const camSize = 10;
 const halfCamW = camSize * aspectRatio;
 const halfCamH = camSize;
 
 class Entity {
-  constructor(x, y, w, h, spriteID) {
+  constructor(x, y, w, h, spriteID, isPlayer) {
     this.x = x;
     this.y = y;
     this.w = w;
     this.h = h;
     this.spriteID = spriteID;
+    if (isPlayer) {
+      playerX = x;
+      playerY = y;
+    }
   }
   MVP() {
     let M = mat3.create()
@@ -160,15 +167,23 @@ const init = () => {
       sock.emit('update_keys', keys);
       keysChanged = false;
     }
+    if (Math.abs(playerX - camX) > halfCamW || Math.abs(playerY - camY) > halfCamH) {
+      camX = playerX;
+      camY = playerY;
+    }
+    if (Math.abs(playerX - camX) < camSpeed) { camX = playerX; }
+    else { camX = (camX * 4 + playerX) / 5; }
+    if (Math.abs(playerY - camY) < camSpeed) { camY = playerY; }
+    else { camY = (camY * 4 + playerY) / 5; }
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);
 
     // render world
     let worldStartX = Math.max(0, Math.floor(camX - halfCamW - 1));
-    let worldStartY = Math.max(0, camY - halfCamH - 1);
+    let worldStartY = Math.max(0, Math.floor(camY - halfCamH - 1));
     let worldEndX = Math.min(world.length, Math.floor(camX + halfCamW + 1));
-    let worldEndY = Math.min(world[0].length, camY + halfCamH + 1);
+    let worldEndY = Math.min(world[0].length, Math.floor(camY + halfCamH + 1));
     for (let i = worldStartX; i < worldEndX; ++i) {
       for (let j = worldStartY; j < worldEndY; ++j) {
         // TODO move this
@@ -210,7 +225,7 @@ const init = () => {
   var sock = io.connect('http://' + ip + ':6942');
 
   sock.on("connect", () => requestAnimationFrame(loop));
-  sock.on("update", elist => {
+  sock.on("entities", elist => {
     entities = elist.map(tup => new Entity(...tup));
   });
   sock.on("health", hlist => {

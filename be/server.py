@@ -10,11 +10,13 @@ app = web.Application()
 sio.attach(app)
 
 player_id_map = {}
+player_id_map_inv = []
 
 @sio.event
 def connect(sid, environ):
   print("connect ", sid)
   player_id_map[sid] = len(player_id_map)
+  player_id_map_inv.append(sid)
   game.new_player(player_id_map[sid])
 
 @sio.event
