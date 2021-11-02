@@ -1,5 +1,6 @@
 import weapon
 import keys
+import aabb
 
 class Entity:
 
@@ -46,8 +47,6 @@ class Player(Entity): # TODO move this
     self.y = 0.
     self.w = 0.5
     self.h = 0.5
-    self.last_x = self.x
-    self.last_y = self.y
     # movement
     self.dx = 0
     self.dy = 0
@@ -156,8 +155,6 @@ class Player(Entity): # TODO move this
     return True
 
   def tick(self, delta):
-    self.last_x, self.last_y = self.x, self.y
-
     self.move(delta)
     self.shoot()
 
@@ -174,10 +171,20 @@ class Player(Entity): # TODO move this
       self.flash_cooldown -= 1
 
   def collide_tile(self, tiles):
-    # just undo movement for now
-    # in the future, align x, y to the argument tiles
-    # incl., slide in the direction we are not colliding
-    self.x, self.y, = self.last_x, self.last_y
+    for tile_x, tile_y, tile_w, tile_h in tiles:
+      # undo prev move
+      self.x -= self.dx
+      self.y -= self.dy
+      # calculate slide
+      self.dx, self.dy = aabb.collide_and_slide(
+        self.dx, self.dy,
+        self.aabb_x, self.aabb_y, self.aabb_w, self.aabb_h,
+        tile_x, tile_y, tile_w, tile_h,
+      )
+      # update pos
+      self.x += self.dx
+      self.y += self.dy
+      self.update_aabb()
 
 
 class Bullet(Entity):
@@ -192,12 +199,16 @@ class Bullet(Entity):
     # game info
     self.speed = 25
     self.dmg = 5 # do 5 damage
-    self.lifespan = 12000000000000000000000
+    self.lifespan = 120
     # graphics
     self.sprite_id = 0
     # misc
     self.src = src
     self.game = game
+
+  def destroy(self, x, y):
+    # TODO: spawn bullet destroy animation at x, y (eg., sparks) here
+    self.game.remove_entity(self)
 
   def tick(self, delta):
     if self.lifespan:
@@ -211,10 +222,10 @@ class Bullet(Entity):
     if self.src == other:
       return
     if other.damage(self.dmg):
-      self.game.remove_entity(self)
+      self.destroy(other.x, other.y)
 
   def collide_tile(self, tiles):
-    self.game.remove_entity(self)
+    self.destroy(self.x, self.y) # TODO return self.x self.y with one calculated from tiles
 
   def damage(self, dmg):
     return False

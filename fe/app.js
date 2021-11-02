@@ -21,6 +21,7 @@ const fragmentShaderText = [
 ].join('\n');
 
 const keys = {};
+let keysChanged = false;
 let world = [[]];
 let entities = [];
 let healths = [];
@@ -121,10 +122,12 @@ const init = () => {
     const key = event.key.toLowerCase();
     console.log(key)
     keys[key] = true;
+    keysChanged = true;
   });
   window.addEventListener('keyup', event => {
     const key = event.key.toLowerCase();
     keys[key] = false;
+    keysChanged = true;
   });
 
   const bufferObject = gl.createBuffer();
@@ -153,7 +156,10 @@ const init = () => {
   const uColour = gl.getUniformLocation(program, 'uColour');
 
   const render = () => {
-    sock.emit('update_keys', keys);
+    if (keysChanged) {
+      sock.emit('update_keys', keys);
+      keysChanged = false;
+    }
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);

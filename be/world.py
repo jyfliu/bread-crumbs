@@ -19,8 +19,9 @@ class World:
 
 
   def intersect(self, aabb_x, aabb_y, aabb_w, aabb_h):
+    intersects = []
     for x, y in self.aabbs:
       if aabb.intersect(aabb_x, aabb_y, aabb_w, aabb_h, x, y, 1, 1):
-        return True
-    return False
+        intersects.append((x, y, 1, 1))
+    return intersects
 

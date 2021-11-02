@@ -84,10 +84,11 @@ class Game:
     self.flush_entities_buffer()
     for entity in self.entities:
       entity.update_aabb()
-      if self.world.intersect(
+      int = self.world.intersect(
         entity.aabb_x, entity.aabb_y, entity.aabb_w, entity.aabb_h
-      ):
-        entity.collide_tile(None)
+      )
+      if int:
+        entity.collide_tile(int)
     # same note as above here, we can only flush add entities here if we want
     self.flush_entities_buffer()
     for e1 in self.entities:
@@ -115,9 +116,16 @@ class Game:
     # all times in seconds
     dt = 1. / self.config.tps
     next_tick_target = time.time() + dt
+    ticks = 0
+    last_print_time = time.time()
 
     while 1:
       await self.tick(dt)
+      ticks += 1
+      if ticks % 60 == 0:
+        now = time.time()
+        print(f"TPS: {self.config.tps / (now - last_print_time):.2f}")
+        last_print_time = now
       now = time.time()
       while now < next_tick_target:
         await asyncio.sleep(0.001)
