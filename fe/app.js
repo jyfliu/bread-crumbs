@@ -1,5 +1,8 @@
 const { mat3 } = glMatrix;
 
+// TODO: load from file
+// chrome does not support loading from a local file for security reasons
+// so will need to host a http server on the remote and fetch the file over http
 const vertexShaderText = [
   'precision mediump float;',
   'attribute vec2 pos;',
@@ -18,13 +21,23 @@ const fragmentShaderText = [
 ].join('\n');
 
 const keys = {};
+let world = [[]];
 let entities = [];
 let healths = [];
 let colours = [
   new Float32Array([1., 0., 0.]),
-  new Float32Array([0., 0.6, 0.]),
+  new Float32Array([0., 0.8, 0.]),
   new Float32Array([0., 0., 0.9]),
+  new Float32Array([0.3843, 0.5843, 0.2157]),
+  new Float32Array([0.1451, 0.2078, 0.1608]),
+  new Float32Array([0.1176, 0.1646, 0.1294]),
 ];
+let camX = 5.;
+let camY = 5.;
+const aspectRatio = 800./600; // TODO query this from the page
+const camSize = 10;
+const halfCamW = camSize * aspectRatio;
+const halfCamH = camSize;
 
 class Entity {
   constructor(x, y, w, h, spriteID) {
@@ -41,8 +54,8 @@ class Entity {
     // 600/800 is the aspect ratio
     // 20 is half of the number of units we want to display on our screen
     // (so our current view is from cam.x-20 to cam.x+20 units)
-    mat3.scale(M, M, [600./800/10, 1./10, 1.0]); // project to screen position
-    // mat3.translate(M, M, [-cam.x, -cam.y]); // translate model to camera position
+    mat3.scale(M, M, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
+    mat3.translate(M, M, [-camX, -camY]); // translate model to camera position
     mat3.translate(M, M, [this.x, this.y]); // translate model to world position
     mat3.scale(M, M, [this.w, this.h, 1.0]); // scale model to correct size
     return M
@@ -145,6 +158,25 @@ const init = () => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);
 
+    // render world
+    let worldStartX = Math.max(0, Math.floor(camX - halfCamW - 1));
+    let worldStartY = Math.max(0, camY - halfCamH - 1);
+    let worldEndX = Math.min(world.length, Math.floor(camX + halfCamW + 1));
+    let worldEndY = Math.min(world[0].length, camY + halfCamH + 1);
+    for (let i = worldStartX; i < worldEndX; ++i) {
+      for (let j = worldStartY; j < worldEndY; ++j) {
+        // TODO move this
+        let M = mat3.create()
+        mat3.scale(M, M, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
+        mat3.translate(M, M, [-camX, -camY]); // translate model to camera position
+        mat3.translate(M, M, [i+0.5, j+0.5]); // translate model to world position
+        mat3.scale(M, M, [1., 1., 1.0]); // scale model to correct size
+        gl.uniformMatrix3fv(uMVP, gl.False, M);
+        gl.uniform3fv(uColour, colours[world[i][j]]);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+    }
+    // render entities
     entities.forEach(entity => {
       gl.uniformMatrix3fv(uMVP, gl.False, entity.MVP());
       gl.uniform3fv(uColour, colours[entity.spriteID]);
@@ -175,9 +207,12 @@ const init = () => {
   sock.on("update", elist => {
     entities = elist.map(tup => new Entity(...tup));
   });
-  sock.on("health", elist => {
-    healths = elist.map(tup => tup[4]);
+  sock.on("health", hlist => {
+    healths = hlist.map(tup => tup[4]);
     document.getElementById("tmphealthbar").innerHTML = "HP: " + healths.join(', ') + ". ";
+  });
+  sock.on("world", world_data => {
+    world = world_data;
   });
 };
 

@@ -2,15 +2,35 @@ import asyncio
 import time
 import random
 
+import numpy as np
+
 import server as se
 import aabb
 
 import entity
+import world
 
 class Game:
 
   def __init__(self, config):
     self.config = config
+    self.first_tick = True
+
+    # TODO read world data from file/generate it procedurally instead of
+    # this temporary init here
+    arr = np.zeros((30, 30))
+    arr[1::4, 1::4] = 1
+    arr[2::4, 1::4] = 3
+    arr[3::4, 1::4] = 1
+    def to_colour(tile):
+      if tile == 3:
+        return 5
+      elif tile == 1:
+        return 4
+      else:
+        return 3
+    self.world = world.World(arr, to_colour)
+
     self.players = {}
     self.entities = set()
     # since we cannot modify a set while we iterate over it,
@@ -53,14 +73,23 @@ class Game:
     )
 
   async def tick(self, delta):
+    if self.first_tick:
+      await se.sio.emit('world', self.world.render)
     self.flush_entities_buffer()
     for entity in self.entities:
       entity.tick(delta)
-    # only flush add entities buffer here
+    # can only flush add entities buffer here
     # this way, entities that only live for 1 frame will be displayed temporarily
-    self.flush_add_entities_buffer()
+    # self.flush_add_entities_buffer()
+    self.flush_entities_buffer()
     for entity in self.entities:
       entity.update_aabb()
+      if self.world.intersect(
+        entity.aabb_x, entity.aabb_y, entity.aabb_w, entity.aabb_h
+      ):
+        entity.collide_tile(None)
+    # same note as above here, we can only flush add entities here if we want
+    self.flush_entities_buffer()
     for e1 in self.entities:
       for e2 in self.entities:
         if e1 is e2:

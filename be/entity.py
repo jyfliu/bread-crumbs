@@ -34,6 +34,9 @@ class Entity:
   def collide(self, other):
     pass
 
+  def collide_tile(self, tiles):
+    pass
+
 class Player(Entity): # TODO move this
 
   def __init__(self, game, player_id):
@@ -43,6 +46,8 @@ class Player(Entity): # TODO move this
     self.y = 0.
     self.w = 0.5
     self.h = 0.5
+    self.last_x = self.x
+    self.last_y = self.y
     # movement
     self.dx = 0
     self.dy = 0
@@ -151,6 +156,8 @@ class Player(Entity): # TODO move this
     return True
 
   def tick(self, delta):
+    self.last_x, self.last_y = self.x, self.y
+
     self.move(delta)
     self.shoot()
 
@@ -165,6 +172,12 @@ class Player(Entity): # TODO move this
       self.sprite_id = 1 + self.player_id % 2
     else:
       self.flash_cooldown -= 1
+
+  def collide_tile(self, tiles):
+    # just undo movement for now
+    # in the future, align x, y to the argument tiles
+    # incl., slide in the direction we are not colliding
+    self.x, self.y, = self.last_x, self.last_y
 
 
 class Bullet(Entity):
@@ -199,6 +212,9 @@ class Bullet(Entity):
       return
     if other.damage(self.dmg):
       self.game.remove_entity(self)
+
+  def collide_tile(self, tiles):
+    self.game.remove_entity(self)
 
   def damage(self, dmg):
     return False

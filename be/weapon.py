@@ -151,8 +151,11 @@ class Laser:
       if bullet.src == other:
         return
       other.damage(bullet.dmg)
+    def modified_collide_tile(other):
+      pass
 
     bullet.collide = modified_collide
+    bullet.collide_tile = modified_collide_tile
     self.game.add_entity(bullet)
 
     self.user.shoot_cooldown = self.max_shoot_cooldown
