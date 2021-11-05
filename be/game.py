@@ -86,6 +86,10 @@ class Game:
         {key for key, val in keys.items() if val == True}
       )
 
+  def spawn_enemy(self):
+    enemy = entity.Enemy(self)
+    self.add_entity(enemy)
+
   async def tick(self, delta):
     if self.first_tick:
       await se.sio.emit('world', self.world.render)

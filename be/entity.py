@@ -158,6 +158,10 @@ class Player(Entity): # TODO move this
     self.move(delta)
     self.shoot()
 
+    # tmp: spawn an enemy
+    if self.keys.pressed('k'):
+      self.game.spawn_enemy()
+
     # tmp: switch weapon for demo purposes
     if self.keys.released(' '):
       self.cur_weapon_idx += 1
@@ -229,5 +233,59 @@ class Bullet(Entity):
 
   def damage(self, dmg):
     return False
+
+
+# TODO:
+#   Map button to spawn enemy
+#   Make enemy tick
+#   Maybe have to take a look at how sprites work
+
+
+
+class Enemy(Entity):
+  def __init__(self, game):
+    super().__init__()
+    # position
+    self.x = 0.
+    self.y = 0.
+    self.w = 0.5
+    self.h = 0.5
+    # movement
+    self.dx = 0
+    self.dy = 0
+    self.speed = 7.2
+    # combat
+    self.hp = 15
+    self.dmg = 5 # do 5 damage
+    self.flash_cooldown = 0 # tmp: damage flash demo purposes
+    # graphics
+    self.sprite_id = 0
+    # game stuff
+    self.keys = keys.Keys()
+    self.game = game
+    self.src = 'third party'
+
+  def tick(self, delta):
+    print(self.hp)
+    if self.hp <= 0:
+      print('enemy destroyed')
+      self.game.remove_entity(self)
+
+  def destroy(self, x, y):
+    # TODO: spawn enemy death animation at x, y (eg., blood) here
+    self.game.remove_entity(self)
+
+  def collide(self, other):
+    if self.src == other:
+      return
+    if other.damage(self.dmg):
+      self.destroy(other.x, other.y)
+
+  def damage(self, dmg):
+    self.hp -= dmg
+    # tmp: damage flash for demp purposes
+    self.sprite_id = 0
+    self.flash_cooldown = 5
+    return True
 
 
