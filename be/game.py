@@ -81,9 +81,10 @@ class Game:
     self.flush_remove_entities_buffer()
 
   def update_player_keys(self, player_id, keys):
-    self.players[player_id].keys.update(
-      {key for key, val in keys.items() if val == True}
-    )
+    if player_id in self.players:
+      self.players[player_id].keys.update(
+        {key for key, val in keys.items() if val == True}
+      )
 
   async def tick(self, delta):
     if self.first_tick:
