@@ -319,7 +319,7 @@ class Cactus(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
     self.hp = 60
-    self.dmg = 5 
+    self.dmg = 5
 
   def move(self, delta):
     pass
@@ -377,7 +377,7 @@ class Bat(Enemy):
     self.dy = 0
 
   def move(self, delta):
-    x_dist = self.target.x - self.x 
+    x_dist = self.target.x - self.x
     y_dist = self.target.y - self.y
     self.dx = x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
     self.dy = y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
@@ -396,7 +396,7 @@ class Mouse(Enemy):
     self.dy = 0
 
   def move(self, delta):
-    x_dist = self.target.x - self.x 
+    x_dist = self.target.x - self.x
     y_dist = self.target.y - self.y
     self.dx = -x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)  # might want to double check the math on this
     self.dy = -y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
@@ -416,7 +416,7 @@ class Snake(Enemy):
     self.direction_counter -= 1
     if self.direction_counter <= 0:
       self.direction_counter = 30
-      x_dist = self.target.x - self.x 
+      x_dist = self.target.x - self.x
       y_dist = self.target.y - self.y
 
       rand = random.randint(1,3)
@@ -427,8 +427,8 @@ class Snake(Enemy):
         self.dx = 0
         self.dy = y_dist / abs(y_dist)
       else:
-        self.dx = x_dist / (2 * abs(x_dist)) 
-        self.dy = y_dist / (2 * abs(y_dist)) 
+        self.dx = x_dist / (2 * abs(x_dist))
+        self.dy = y_dist / (2 * abs(y_dist))
 
     super().move(delta)
 
