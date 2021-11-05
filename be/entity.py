@@ -64,6 +64,7 @@ class Player(Entity): # TODO move this
     # combat
     self.hp = 100
     self.flash_cooldown = 0 # tmp: damage flash demo purposes
+    self.recovery_cooldown = 0
     # graphics
     self.sprite_id = 1 + player_id % 2
     # game stuff
@@ -148,10 +149,14 @@ class Player(Entity): # TODO move this
   def damage(self, dmg):
     if self.is_rolling():
       return False
+    if self.recovery_cooldown > 0:
+      self.recovery_cooldown -= 1
+      return False
     self.hp -= dmg
     # tmp: damage flash for demp purposes
     self.sprite_id = 0
     self.flash_cooldown = 5
+    self.recovery_cooldown = 5
     return True
 
   def tick(self, delta):
@@ -160,7 +165,7 @@ class Player(Entity): # TODO move this
 
     # tmp: spawn an enemy
     if self.keys.pressed('k'):
-      self.game.spawn_enemy()
+      self.game.spawn_enemy(self)
 
     # tmp: switch weapon for demo purposes
     if self.keys.released(' '):
@@ -243,7 +248,7 @@ class Bullet(Entity):
 
 
 class Enemy(Entity):
-  def __init__(self, game):
+  def __init__(self, game, target):
     super().__init__()
     # position
     self.x = 0.
@@ -263,10 +268,9 @@ class Enemy(Entity):
     # game stuff
     self.keys = keys.Keys()
     self.game = game
-    self.src = 'third party'
+    self.target = target
 
   def tick(self, delta):
-    print(self.hp)
     if self.hp <= 0:
       print('enemy destroyed')
       self.game.remove_entity(self)
@@ -276,10 +280,8 @@ class Enemy(Entity):
     self.game.remove_entity(self)
 
   def collide(self, other):
-    if self.src == other:
-      return
-    if other.damage(self.dmg):
-      self.destroy(other.x, other.y)
+    if other == self.target:
+      other.damage(self.dmg)
 
   def damage(self, dmg):
     self.hp -= dmg

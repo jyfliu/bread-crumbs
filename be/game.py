@@ -86,8 +86,8 @@ class Game:
         {key for key, val in keys.items() if val == True}
       )
 
-  def spawn_enemy(self):
-    enemy = entity.Enemy(self)
+  def spawn_enemy(self, player):
+    enemy = entity.Enemy(self, player)
     self.add_entity(enemy)
 
   async def tick(self, delta):
