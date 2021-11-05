@@ -1,4 +1,4 @@
-import asyncio
+import asyncio as aio
 import socketio
 
 from aiohttp import web
@@ -28,22 +28,12 @@ def disconnect(sid):
   print("disconnect", sid)
   game.remove_player(player_id_map[sid])
 
-async def run(config):
+def run(config):
   global game # spaghetti
   game = ge.Game(config)
 
-  # hack to run aiohttp with our game loop in the same event loop
-  # uses a private function _run_app (works in aiohttp==3.8)
-  await asyncio.gather(
-    web._run_app(app, port=config.server_port),
-    game.game_loop(),
-  )
+  loop = aio.get_event_loop()
+  loop.create_task(game.game_loop())
 
-  # The proper way of doing it (doesn't work for me :|)
-  # runner = web.AppRunner(app)
-  # await runner.setup()
-  # site = web.TCPSite(runner, 'localhost', port=config.server_port)
-  # await site.start()
-
-  # await game.game_loop()
+  web.run_app(app, port=config.server_port, loop=loop)
 

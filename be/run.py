@@ -1,7 +1,5 @@
 #!/usr/bin/python
 
-import asyncio
-
 from easydict import EasyDict as edict
 
 import server
@@ -14,7 +12,7 @@ def main():
   print("Config: ", config)
   print("Starting server")
 
-  asyncio.run(server.run(config))
+  server.run(config)
 
 if __name__ == '__main__':
   main()

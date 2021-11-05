@@ -1,4 +1,4 @@
-import asyncio
+import asyncio as aio
 import time
 import random
 
@@ -149,7 +149,7 @@ class Game:
         last_print_time = now
       now = time.time()
       while now < next_tick_target:
-        await asyncio.sleep(0.001)
+        await aio.sleep(0.001)
         now = time.time()
       next_tick_target += dt
 
