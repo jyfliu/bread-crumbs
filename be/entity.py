@@ -1,6 +1,8 @@
 import weapon
 import keys
 import aabb
+import random
+import math
 
 class Entity:
 
@@ -26,7 +28,7 @@ class Entity:
     self.aabb_h = 2 * self.h
 
   def tick(self, delta):
-    pass
+    self.move()
 
   def damage(self, dmg):
     # returns if the object can be damaged or not
@@ -258,7 +260,7 @@ class Enemy(Entity):
     # movement
     self.dx = 0
     self.dy = 0
-    self.speed = 7.2
+    self.speed = 0
     # combat
     self.hp = 15
     self.dmg = 5 # do 5 damage
@@ -270,10 +272,14 @@ class Enemy(Entity):
     self.game = game
     self.target = target
 
+  def move(self, delta):
+    self.x += (self.speed * self.dx) * delta
+    self.y += (self.speed * self.dy) * delta
+
   def tick(self, delta):
     if self.hp <= 0:
-      print('enemy destroyed')
       self.game.remove_entity(self)
+    self.move(delta)
 
   def destroy(self, x, y):
     # TODO: spawn enemy death animation at x, y (eg., blood) here
@@ -289,5 +295,94 @@ class Enemy(Entity):
     self.sprite_id = 0
     self.flash_cooldown = 5
     return True
+
+class Cactus(Enemy):
+  def __init__(self, game, target):
+    super().__init__(game, target)
+    self.hp = 60
+    self.dmg = 5 
+
+  def move(self, delta):
+    pass
+
+class Slug(Enemy):
+  def __init__(self, game, target):
+    super().__init__(game, target)
+    self.hp = 15
+    self.dmg = 5
+    self.speed = 5
+    self.dx = -1
+    self.dy = 0
+
+  def collide(self, other):
+    if other == self.target:
+      other.damage(self.dmg)
+    elif other == False:         # TODO: change to collision with wall
+       self.dx *= -1
+       self.dy *= -1
+
+class Ant(Enemy):
+  def __init__(self, game, target):
+    super().__init__(game, target)
+    self.hp = 25
+    self.dmg = 10
+    self.speed = 5
+    self.dx = -1
+    self.dy = 0
+    self.direction_counter = 60
+
+  def move(self, delta):
+    self.direction_counter -= 1
+    if self.direction_counter <= 0:
+      self.direction_counter = 60
+      rand = random.randint(1,4)
+      self.dx = 0
+      self.dy = 0
+      if(rand == 1):
+        self.dx = -1
+      elif(rand == 2):
+        self.dx = 1
+      elif(rand == 3):
+        self.dy = -1
+      elif(rand == 4):
+        self.dy = 1
+    super().move(delta)
+
+class Bat(Enemy):
+  def __init__(self, game, target):
+    super().__init__(game, target)
+    self.hp = 25
+    self.dmg = 5
+    self.speed = 5
+    self.dx = 0
+    self.dy = 0
+    self.direction_counter = 60
+
+  def move(self, delta):
+    x_dist = self.target.x - self.x 
+    y_dist = self.target.y - self.y
+    self.dx = x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+    self.dy = y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+    super().move(delta)
+
+class Mouse(Enemy):
+  def __init__(self, game, target):
+    super().__init__(game, target)
+    self.hp = 25
+    self.dmg = 5
+    self.speed = 3
+    self.dx = 0
+    self.dy = 0
+    self.direction_counter = 60
+
+  def move(self, delta):
+    x_dist = self.target.x - self.x 
+    y_dist = self.target.y - self.y
+    self.dx = -x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+    self.dy = -y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+    super().move(delta)
+
+
+
 
 

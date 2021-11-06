@@ -87,7 +87,7 @@ class Game:
       )
 
   def spawn_enemy(self, player):
-    enemy = entity.Enemy(self, player)
+    enemy = entity.Mouse(self, player)
     self.add_entity(enemy)
 
   async def tick(self, delta):
