@@ -25,7 +25,7 @@ let keysChanged = false;
 let world = [[]];
 let entities = [];
 let healths = [];
-let colours = [
+let sprites = [ // TODO change to actual sprites
   new Float32Array([1., 0., 0.]),
   new Float32Array([0., 0.8, 0.]),
   new Float32Array([0., 0., 0.9]),
@@ -37,6 +37,15 @@ let colours = [
   new Float32Array([1., 0., 1.]),
   new Float32Array([0., 1., 1.]),
 ];
+
+const colours = {
+  red: new Float32Array([1., 0., 0.]),
+  green: new Float32Array([0., 1., 0.]),
+  blue: new Float32Array([0., 0., 1.]),
+  black: new Float32Array([0., 0., 0.]),
+  white: new Float32Array([1., 1., 1.]),
+};
+
 // position
 let camX = 0.;
 let camY = 0.;
@@ -181,11 +190,11 @@ const init = () => {
       camY = playerY;
       camAX = camAY = camVX = camVY = 0;
     }
-    camVX = lerp(camVX, playerX - camX, 0.15);
-    camVY = lerp(camVY, playerY - camY, 0.15);
+    camVX = lerp(camVX, playerX - camX, 0.12);
+    camVY = lerp(camVY, playerY - camY, 0.12);
 
-    camX = lerp(camX, camX + camVX, 0.15);
-    camY = lerp(camY, camY + camVY, 0.15);
+    camX = lerp(camX, camX + camVX, 0.12);
+    camY = lerp(camY, camY + camVY, 0.12);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);
@@ -193,27 +202,59 @@ const init = () => {
     // render world
     let worldStartX = Math.max(0, Math.floor(camX - halfCamW - 1));
     let worldStartY = Math.max(0, Math.floor(camY - halfCamH - 1));
-    let worldEndX = Math.min(world.length, Math.floor(camX + halfCamW + 1));
-    let worldEndY = Math.min(world[0].length, Math.floor(camY + halfCamH + 1));
-    for (let i = worldStartX; i < worldEndX; ++i) {
-      for (let j = worldStartY; j < worldEndY; ++j) {
-        // TODO move this
-        let M = mat3.create()
+    let worldEndX = Math.min(world.length - 1, Math.floor(camX + halfCamW + 1));
+    let worldEndY = Math.min(world[0].length - 1, Math.floor(camY + halfCamH + 1));
+    for (let i = worldStartX; i <= worldEndX; ++i) {
+      for (let j = worldStartY; j <= worldEndY; ++j) {
+        // TODO move this and optimize
+        let M = mat3.create();
         mat3.scale(M, M, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
         mat3.translate(M, M, [-camX, -camY]); // translate model to camera position
         mat3.translate(M, M, [i+0.5, j+0.5]); // translate model to world position
         mat3.scale(M, M, [1., 1., 1.0]); // scale model to correct size
         gl.uniformMatrix3fv(uMVP, gl.False, M);
-        gl.uniform3fv(uColour, colours[world[i][j]]);
+        gl.uniform3fv(uColour, sprites[world[i][j]]);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
     }
     // render entities
     entities.forEach(entity => {
       gl.uniformMatrix3fv(uMVP, gl.False, entity.MVP());
-      gl.uniform3fv(uColour, colours[entity.spriteID]);
+      gl.uniform3fv(uColour, sprites[entity.spriteID]);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-    })
+    });
+
+    healths.forEach(health => {
+        let [x, y, w, h, hp, maxHp] = health;
+
+        // TODO refactor
+        let VP = mat3.create();
+        mat3.scale(VP, VP, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
+        mat3.translate(VP, VP, [-camX, -camY]); // translate model to camera position
+        mat3.translate(VP, VP, [x, y+0.5*w+0.5]); // translate model to world position
+        let M = mat3.create();
+        // black rectangle
+        mat3.scale(M, VP, [1., 0.15, 1.]);
+        gl.uniformMatrix3fv(uMVP, gl.False, M);
+        gl.uniform3fv(uColour, colours.black);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        // red
+        mat3.scale(M, VP, [0.97, 0.12, 1.]);
+        gl.uniformMatrix3fv(uMVP, gl.False, M);
+        gl.uniform3fv(uColour, colours.red);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        // green
+        let ratio = hp / maxHp;
+        if (ratio < 0) ratio = 0.;
+        if (ratio > 1) ratio = 1.;
+        mat3.translate(M, VP, [0.97 * (ratio - 1), 0.]);
+        mat3.scale(M, M, [0.97 * ratio, 0.12, 1.]);
+        gl.uniformMatrix3fv(uMVP, gl.False, M);
+        gl.uniform3fv(uColour, colours.green);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+    });
   };
 
   let running = true;
@@ -240,8 +281,7 @@ const init = () => {
     entities = elist.map(tup => new Entity(...tup));
   });
   sock.on("health", hlist => {
-    healths = hlist.map(tup => tup[4]);
-    document.getElementById("tmphealthbar").innerHTML = "HP: " + healths.join(', ') + ". ";
+    healths = hlist;
   });
   sock.on("world", world_data => {
     world = world_data;
