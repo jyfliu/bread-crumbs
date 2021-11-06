@@ -59,7 +59,40 @@ const camSize = 10;
 const halfCamW = camSize * aspectRatio;
 const halfCamH = camSize;
 
-const lerp = (start, end, amount) => { return (1 - amount) * start + amount * end; }
+// different camera smoothing techniques helpers
+// linear interp
+const lerp = (start, end, amount) => {
+  return (1 - amount) * start + amount * end;
+};
+
+const cameraLerp = (dt) => {
+  camVX = lerp(camVX, playerX - camX, 0.12);
+  camVY = lerp(camVY, playerY - camY, 0.12);
+
+  camX = lerp(camX, camX + camVX, 0.12);
+  camY = lerp(camY, camY + camVY, 0.12);
+};
+
+// smooth critical damping
+const cd_smoothTime = 500;
+const cd_omega = 2. / cd_smoothTime;
+
+const cd_maxSmoothSpeed = 1000.; // no max
+
+const cameraSmoothCD = (dt) => {
+  const x = cd_omega * dt;
+  const exp = 1./ (1. + x + 0.48 * x * x + 0.235 * x * x * x);
+  let changeX = Math.min(cd_maxSmoothSpeed, Math.max(-cd_maxSmoothSpeed, camX - playerX));
+  let tempX = (camVX + cd_omega * changeX) * dt;
+  camVX = (camVX - cd_omega * tempX) * exp;
+  camX = playerX + (changeX + tempX) * exp;
+
+  let changeY = Math.min(cd_maxSmoothSpeed, Math.max(-cd_maxSmoothSpeed, camY - playerY));
+  let tempY = (camVY + cd_omega * changeY) * dt;
+  camVY = (camVY - cd_omega * tempY) * exp;
+  camY = playerY + (changeY + tempY) * exp;
+};
+
 
 class Entity {
   constructor(x, y, w, h, spriteID, isPlayer) {
@@ -190,11 +223,8 @@ const init = () => {
       camY = playerY;
       camAX = camAY = camVX = camVY = 0;
     }
-    camVX = lerp(camVX, playerX - camX, 0.12);
-    camVY = lerp(camVY, playerY - camY, 0.12);
 
-    camX = lerp(camX, camX + camVX, 0.12);
-    camY = lerp(camY, camY + camVY, 0.12);
+    cameraSmoothCD(dt);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);
