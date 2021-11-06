@@ -431,25 +431,25 @@ const main = async () => {
     });
 
     healths.forEach(health => {
-        let [x, y, w, h, hp, maxHp] = health;
+      let [x, y, w, h, hp, maxHp] = health;
 
-        let M0 = mat3.create();
-        mat3.translate(M0, VP, [x, y+0.5*w+0.5]); // translate model to world position
-        // black rectangle
-        mat3.scale(M, M0, [1., 0.15, 1.]);
-        drawSquare(M, colours.black);
+      let M0 = mat3.create();
+      mat3.translate(M0, VP, [x, y+0.5*w+0.5]); // translate model to world position
+      // black rectangle
+      mat3.scale(M, M0, [1., 0.15, 1.]);
+      drawSquare(M, colours.black);
 
-        // red
-        mat3.scale(M, M0, [0.97, 0.12, 1.]);
-        drawSquare(M, colours.red);
+      // red
+      mat3.scale(M, M0, [0.97, 0.12, 1.]);
+      drawSquare(M, colours.red);
 
-        // green
-        let ratio = hp / maxHp;
-        if (ratio < 0) ratio = 0.;
-        if (ratio > 1) ratio = 1.;
-        mat3.translate(M, M0, [0.97 * (ratio - 1), 0.]);
-        mat3.scale(M, M, [0.97 * ratio, 0.12, 1.]);
-        drawSquare(M, colours.green);
+      // green
+      let ratio = hp / maxHp;
+      if (ratio < 0) ratio = 0.;
+      if (ratio > 1) ratio = 1.;
+      mat3.translate(M, M0, [0.97 * (ratio - 1), 0.]);
+      mat3.scale(M, M, [0.97 * ratio, 0.12, 1.]);
+      drawSquare(M, colours.green);
     });
   };
 
