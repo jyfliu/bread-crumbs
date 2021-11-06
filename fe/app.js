@@ -32,6 +32,10 @@ let colours = [
   new Float32Array([0.3843, 0.5843, 0.2157]),
   new Float32Array([0.1451, 0.2078, 0.1608]),
   new Float32Array([0.1176, 0.1646, 0.1294]),
+  new Float32Array([0.05, 0.05, 0.05]),
+  new Float32Array([1., 1., 0.]),
+  new Float32Array([1., 0., 1.]),
+  new Float32Array([0., 1., 1.]),
 ];
 let camX = 0.;
 let camY = 0.;

@@ -16,20 +16,7 @@ class Game:
     self.config = config
     self.first_tick = True
 
-    # TODO read world data from file/generate it procedurally instead of
-    # this temporary init here
-    arr = np.zeros((30, 30))
-    arr[1::4, 1::4] = 1
-    arr[2::4, 1::4] = 3
-    arr[3::4, 1::4] = 1
-    def to_colour(tile):
-      if tile == 3:
-        return 5
-      elif tile == 1:
-        return 4
-      else:
-        return 3
-    self.world = world.World(arr, to_colour)
+    self.world = world.gen_dungeon()
 
     self.entities = set()
     # since we cannot modify a set while we iterate over it,
@@ -43,6 +30,8 @@ class Game:
 
   def new_player(self, player_id):
     player = entity.Player(self, player_id)
+    player.x = self.world.spawnx
+    player.y = self.world.spawny
     self.add_players_buffer.append(player)
     self.add_entity(player)
 

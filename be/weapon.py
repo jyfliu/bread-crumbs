@@ -16,16 +16,19 @@ class Pistol:
       self.user.shoot_cooldown -= 1
       return
 
-    if (shoot_dx + shoot_dy) % 2:
-      # shoot if exactly one key is pressed (no diagonal shooting)
-      self.game.add_entity(entity.Bullet(
-        self.game, self.user,
-        self.user.x, self.user.y,
-        (shoot_dx, shoot_dy),
-        # impart momentum in the direction we are not firing
-        (self.user.dx if shoot_dy else 0, self.user.dy if shoot_dx else 0)
-      ))
-      self.user.shoot_cooldown = self.max_shoot_cooldown
+    if shoot_dx and shoot_dy:
+      return
+    if not shoot_dx and not shoot_dy:
+      return
+
+    self.game.add_entity(entity.Bullet(
+      self.game, self.user,
+      self.user.x, self.user.y,
+      (shoot_dx, shoot_dy),
+      # impart momentum in the direction we are not firing
+      (self.user.dx if shoot_dy else 0, self.user.dy if shoot_dx else 0)
+    ))
+    self.user.shoot_cooldown = self.max_shoot_cooldown
 
 class Shotgun:
 
