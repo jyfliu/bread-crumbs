@@ -65,6 +65,7 @@ class Player(Entity): # TODO move this
     self.cur_weapon = self.weapons[self.cur_weapon_idx]
     # combat
     self.hp = 100
+    self.max_hp = 100
     self.flash_cooldown = 0 # tmp: damage flash demo purposes
     self.recovery_cooldown = 0
     # graphics

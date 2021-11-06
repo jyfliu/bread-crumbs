@@ -123,7 +123,7 @@ class Game:
         entity_data[i][5] = False
     await se.sio.emit('health',
       # hasattr sketch?
-      [(e.x, e.y, e.w, e.h, e.hp) for e in self.entities if hasattr(e, 'hp')]
+      [(e.x, e.y, e.w, e.h, e.hp, e.max_hp) for e in self.entities if hasattr(e, 'hp')]
     )
 
   async def game_loop(self):
