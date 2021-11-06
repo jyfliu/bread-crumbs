@@ -356,7 +356,6 @@ class Bat(Enemy):
     self.speed = 5
     self.dx = 0
     self.dy = 0
-    self.direction_counter = 60
 
   def move(self, delta):
     x_dist = self.target.x - self.x 
@@ -373,15 +372,43 @@ class Mouse(Enemy):
     self.speed = 3
     self.dx = 0
     self.dy = 0
-    self.direction_counter = 60
 
   def move(self, delta):
     x_dist = self.target.x - self.x 
     y_dist = self.target.y - self.y
-    self.dx = -x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+    self.dx = -x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)  # might want to double check the math on this
     self.dy = -y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
     super().move(delta)
 
+class Snake(Enemy):
+  def __init__(self, game, target):
+    super().__init__(game, target)
+    self.hp = 25
+    self.dmg = 5
+    self.speed = 7
+    self.dx = 0
+    self.dy = 0
+    self.direction_counter = 0
+
+  def move(self, delta):
+    self.direction_counter -= 1
+    if self.direction_counter <= 0:
+      self.direction_counter = 60
+      x_dist = self.target.x - self.x 
+      y_dist = self.target.y - self.y
+
+      rand = random.randint(1,3)
+      if rand == 1:
+        self.dx = x_dist / abs(x_dist)
+        self.dy = 0
+      elif rand == 2:
+        self.dx = 0
+        self.dy = y_dist / abs(y_dist)
+      else:
+        self.dx = x_dist / (2 * abs(x_dist)) 
+        self.dy = y_dist / (2 * abs(y_dist)) 
+
+    super().move(delta)
 
 
 
