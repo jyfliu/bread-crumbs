@@ -37,15 +37,20 @@ let colours = [
   new Float32Array([1., 0., 1.]),
   new Float32Array([0., 1., 1.]),
 ];
+// position
 let camX = 0.;
 let camY = 0.;
-const camSpeed = 0.1;
+// velocity
+let camVX = 0.;
+let camVY = 0.;
 let playerX = 0.;
 let playerY = 0.;
 const aspectRatio = 800./600; // TODO query this from the page
 const camSize = 10;
 const halfCamW = camSize * aspectRatio;
 const halfCamH = camSize;
+
+const lerp = (start, end, amount) => { return (1 - amount) * start + amount * end; }
 
 class Entity {
   constructor(x, y, w, h, spriteID, isPlayer) {
@@ -71,8 +76,6 @@ class Entity {
     mat3.translate(M, M, [this.x, this.y]); // translate model to world position
     mat3.scale(M, M, [this.w, this.h, 1.0]); // scale model to correct size
     return M
-  }
-  render() {
   }
 };
 
@@ -166,19 +169,23 @@ const init = () => {
   const uMVP = gl.getUniformLocation(program, 'uMVP');
   const uColour = gl.getUniformLocation(program, 'uColour');
 
-  const render = () => {
+  const render = (dt) => {
     if (keysChanged) {
       sock.emit('update_keys', keys);
       keysChanged = false;
     }
-    if (Math.abs(playerX - camX) > halfCamW || Math.abs(playerY - camY) > halfCamH) {
+    if (Math.abs(playerX - camX) > halfCamW * 1.2 || Math.abs(playerY - camY) > halfCamH * 1.2) {
+      // if camera gets too far then teleport it to player
+      console.log('reset camera');
       camX = playerX;
       camY = playerY;
+      camAX = camAY = camVX = camVY = 0;
     }
-    if (Math.abs(playerX - camX) < camSpeed) { camX = playerX; }
-    else { camX = (camX * 4 + playerX) / 5; }
-    if (Math.abs(playerY - camY) < camSpeed) { camY = playerY; }
-    else { camY = (camY * 4 + playerY) / 5; }
+    camVX = lerp(camVX, playerX - camX, 0.15);
+    camVY = lerp(camVY, playerY - camY, 0.15);
+
+    camX = lerp(camX, camX + camVX, 0.15);
+    camY = lerp(camY, camY + camVY, 0.15);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);
@@ -217,7 +224,7 @@ const init = () => {
     }
     const delta = time - start;
     start = time;
-    render();
+    render(delta);
     if (running) {
       requestAnimationFrame(loop);
     }
