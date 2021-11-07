@@ -300,6 +300,22 @@ class Enemy(Entity):
     self.stun_duration = 10
     return True
 
+  def collide_tile(self, tiles):      # pasted from player
+    for tile_x, tile_y, tile_w, tile_h in tiles:
+      # undo prev move
+      self.x -= self.dx
+      self.y -= self.dy
+      # calculate slide
+      self.dx, self.dy = aabb.collide_and_slide(
+        self.dx, self.dy,
+        self.aabb_x, self.aabb_y, self.aabb_w, self.aabb_h,
+        tile_x, tile_y, tile_w, tile_h,
+      )
+      # update pos
+      self.x += self.dx
+      self.y += self.dy
+      self.update_aabb()
+
 class Cactus(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
@@ -368,6 +384,9 @@ class Bat(Enemy):
     self.dy = y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
     super().move(delta)
 
+  def collide_tile(self, tiles):    # disabling wall collision for "flying" enemy
+    pass
+
 class Mouse(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
@@ -397,15 +416,15 @@ class Snake(Enemy):
   def move(self, delta):
     self.direction_counter -= 1
     if self.direction_counter <= 0:
-      self.direction_counter = 60
+      self.direction_counter = 30
       x_dist = self.target.x - self.x 
       y_dist = self.target.y - self.y
 
       rand = random.randint(1,3)
-      if rand == 1:
+      if rand == 1 or y_dist == 0:
         self.dx = x_dist / abs(x_dist)
         self.dy = 0
-      elif rand == 2:
+      elif rand == 2 or x_dist == 0:
         self.dx = 0
         self.dy = y_dist / abs(y_dist)
       else:
