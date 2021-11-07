@@ -6,44 +6,114 @@ const { mat3 } = glMatrix;
 const vertexShaderText = [
   'precision mediump float;',
   'attribute vec2 pos;',
+  'attribute vec2 uv;',
   'uniform mat3 uMVP;',
+  'varying highp vec2 vTextureCoord;',
   'void main() {',
   '  gl_Position = vec4((uMVP * vec3(pos, 1.0)).xy, 0.0, 1.0);',
+  '  vTextureCoord = uv;',
   '}',
 ].join('\n');
 
 const fragmentShaderText = [
   'precision mediump float;',
-  'uniform vec3 uColour;',
+  'varying highp vec2 vTextureCoord;',
+  'uniform sampler2D uSampler;',
   'void main() {',
-  '  gl_FragColor = vec4(uColour, 1.0);',
+  '  gl_FragColor = texture2D(uSampler, vTextureCoord);',
   '}',
 ].join('\n');
+
+// Load textures
+const isPowerOf2 = (val) => { return value & (value - 1) === 0; };
+const loadTexture = (gl, url) => {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // temporary texture while loading
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0, // level
+    gl.RGBA, // internal format
+    2, 2, // width, height
+    0, // border (?)
+    gl.RGBA, // source format
+    gl.UNSIGNED_BYTE, // source
+    new Uint8Array([ // pixels
+      255, 0, 255, 255,
+      0, 0, 0, 255,
+      255, 0, 255, 255,
+      0, 0, 0, 255,
+    ]),
+  );
+
+  const image = new Image();
+  image.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                  srcFormat, srcType, image);
+
+    // WebGL1 has different requirements for power of 2 images
+    // vs non power of 2 images so check if the image is a
+    // power of 2 in both dimensions.
+    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+       // Yes, it's a power of 2. Generate mips.
+       gl.generateMipmap(gl.TEXTURE_2D);
+    } else {
+       // No, it's not a power of 2. Turn off mips and set
+       // wrapping to clamp to edge
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+  };
+  image.src = url;
+
+  return texture;
+};
+const loadColourTexture = (gl, r, g, b) => {
+  // colour is given as an rgba array like [0xff, 0xff, 0xff, 0xff]
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0, // level
+    gl.RGBA, // internal format
+    1, 1, // width, height
+    0, // border (?)
+    gl.RGBA, // source format
+    gl.UNSIGNED_BYTE, // source
+    new Uint8Array([r, g, b, 255]), // pixel
+  );
+
+  return texture;
+};
 
 const keys = {};
 let keysChanged = false;
 let world = [[]];
 let entities = [];
 let healths = [];
-let sprites = [ // TODO change to actual sprites
-  new Float32Array([1., 0., 0.]),
-  new Float32Array([0., 0.8, 0.]),
-  new Float32Array([0., 0., 0.9]),
-  new Float32Array([0.3843, 0.5843, 0.2157]),
-  new Float32Array([0.1451, 0.2078, 0.1608]),
-  new Float32Array([0.1176, 0.1646, 0.1294]),
-  new Float32Array([0.05, 0.05, 0.05]),
-  new Float32Array([1., 1., 0.]),
-  new Float32Array([1., 0., 1.]),
-  new Float32Array([0., 1., 1.]),
+let sprites = [ // TODO improve sprite loading system
+  0xff0000,
+  0x00cc00,
+  0x0000e6,
+  0x629537,
+  0x253529,
+  0x1e2a21,
+  0x0d0d0d,
+  0xffff00,
+  0xff00ff,
+  0x00ffff,
 ];
 
 const colours = {
-  red: new Float32Array([1., 0., 0.]),
-  green: new Float32Array([0., 1., 0.]),
-  blue: new Float32Array([0., 0., 1.]),
-  black: new Float32Array([0., 0., 0.]),
-  white: new Float32Array([1., 1., 1.]),
+  red:   0xff0000,
+  green: 0x00ff00,
+  blue:  0x0000ff,
+  black: 0x000000,
+  white: 0xffffff,
 };
 
 // position
@@ -109,10 +179,6 @@ class Entity {
   MVP() {
     let M = mat3.create()
     // note function application order is backwards
-    // TODO move magic numbers. The meanings are
-    // 600/800 is the aspect ratio
-    // 20 is half of the number of units we want to display on our screen
-    // (so our current view is from cam.x-20 to cam.x+20 units)
     mat3.scale(M, M, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
     mat3.translate(M, M, [-camX, -camY]); // translate model to camera position
     mat3.translate(M, M, [this.x, this.y]); // translate model to world position
@@ -121,7 +187,7 @@ class Entity {
   }
 };
 
-const init = () => {
+const main = () => {
 
   const canvas = document.getElementById('game-canvas');
   const gl = canvas.getContext('webgl');
@@ -186,8 +252,30 @@ const init = () => {
     keysChanged = true;
   });
 
-  const bufferObject = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, bufferObject);
+  // init colours
+  Object.keys(colours).map(name => {
+    console.log(name, (colours[name] & 0xff0000) >> 16, // r
+      (colours[name] & 0x00ff00) >>  8, // g
+      (colours[name] & 0x0000ff) >>  0, // b
+    )
+    colours[name] = loadColourTexture( gl,
+      (colours[name] & 0xff0000) >> 16, // r
+      (colours[name] & 0x00ff00) >>  8, // g
+      (colours[name] & 0x0000ff) >>  0, // b
+    );
+  });
+  // temporary sprite loading system (until we actually have sprites)
+  sprites = sprites.map(colour => {
+    return loadColourTexture( gl,
+      (colour & 0xff0000) >> 16, // r
+      (colour & 0x00ff00) >>  8, // g
+      (colour & 0x0000ff) >>  0, // b
+    );
+  });
+
+  // init buffers
+  const drawBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, drawBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
      1,  1,
      1, -1,
@@ -195,7 +283,7 @@ const init = () => {
      1,  1,
     -1,  1,
     -1, -1,
-  ]) , gl.STATIC_DRAW);
+  ]), gl.STATIC_DRAW);
 
   const posAttr = gl.getAttribLocation(program, 'pos');
   gl.vertexAttribPointer(
@@ -208,8 +296,42 @@ const init = () => {
   );
   gl.enableVertexAttribArray(posAttr);
 
+  const texCoordBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    1, 1,
+    1, 0,
+    0, 0,
+    1, 1,
+    0, 1,
+    0, 0,
+  ]), gl.STATIC_DRAW);
+
+  const uvAttr = gl.getAttribLocation(program, 'uv');
+  gl.vertexAttribPointer(
+    uvAttr,
+    2,
+    gl.FLOAT,
+    gl.FALSE,
+    0,
+    0,
+  );
+  gl.enableVertexAttribArray(uvAttr);
+
   const uMVP = gl.getUniformLocation(program, 'uMVP');
-  const uColour = gl.getUniformLocation(program, 'uColour');
+  const uSampler = gl.getUniformLocation(program, 'uSampler');
+
+  const drawSquare = (MVP, texture) => {
+    gl.uniformMatrix3fv(uMVP, gl.False, MVP);
+    // texture
+    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(uSampler, 0);
+    // draw square
+    gl.bindBuffer(gl.ARRAY_BUFFER, drawBuffer);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  };
 
   const render = (dt) => {
     if (keysChanged) {
@@ -225,6 +347,11 @@ const init = () => {
     }
 
     cameraSmoothCD(dt);
+    // update view and projection matrices
+    let VP = mat3.create();
+    mat3.scale(VP, VP, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
+    mat3.translate(VP, VP, [-camX, -camY]); // translate model to camera position
+    let M = mat3.create();
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(program);
@@ -236,54 +363,37 @@ const init = () => {
     let worldEndY = Math.min(world[0].length - 1, Math.floor(camY + halfCamH + 1));
     for (let i = worldStartX; i <= worldEndX; ++i) {
       for (let j = worldStartY; j <= worldEndY; ++j) {
-        // TODO move this and optimize
-        let M = mat3.create();
-        mat3.scale(M, M, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
-        mat3.translate(M, M, [-camX, -camY]); // translate model to camera position
-        mat3.translate(M, M, [i+0.5, j+0.5]); // translate model to world position
-        mat3.scale(M, M, [1., 1., 1.0]); // scale model to correct size
-        gl.uniformMatrix3fv(uMVP, gl.False, M);
-        gl.uniform3fv(uColour, sprites[world[i][j]]);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        mat3.translate(M, VP, [i+0.5, j+0.5]); // translate model to world position
+        //mat3.scale(M, M, [1., 1., 1.]); // scale model to correct size
+        drawSquare(M, sprites[world[i][j]]);
       }
     }
     // render entities
     entities.forEach(entity => {
       gl.uniformMatrix3fv(uMVP, gl.False, entity.MVP());
-      gl.uniform3fv(uColour, sprites[entity.spriteID]);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      drawSquare(entity.MVP(), sprites[entity.spriteID]);
     });
 
     healths.forEach(health => {
         let [x, y, w, h, hp, maxHp] = health;
 
-        // TODO refactor
-        let VP = mat3.create();
-        mat3.scale(VP, VP, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
-        mat3.translate(VP, VP, [-camX, -camY]); // translate model to camera position
-        mat3.translate(VP, VP, [x, y+0.5*w+0.5]); // translate model to world position
-        let M = mat3.create();
+        let M0 = mat3.create();
+        mat3.translate(M0, VP, [x, y+0.5*w+0.5]); // translate model to world position
         // black rectangle
-        mat3.scale(M, VP, [1., 0.15, 1.]);
-        gl.uniformMatrix3fv(uMVP, gl.False, M);
-        gl.uniform3fv(uColour, colours.black);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        mat3.scale(M, M0, [1., 0.15, 1.]);
+        drawSquare(M, colours.black);
 
         // red
-        mat3.scale(M, VP, [0.97, 0.12, 1.]);
-        gl.uniformMatrix3fv(uMVP, gl.False, M);
-        gl.uniform3fv(uColour, colours.red);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        mat3.scale(M, M0, [0.97, 0.12, 1.]);
+        drawSquare(M, colours.red);
 
         // green
         let ratio = hp / maxHp;
         if (ratio < 0) ratio = 0.;
         if (ratio > 1) ratio = 1.;
-        mat3.translate(M, VP, [0.97 * (ratio - 1), 0.]);
+        mat3.translate(M, M0, [0.97 * (ratio - 1), 0.]);
         mat3.scale(M, M, [0.97 * ratio, 0.12, 1.]);
-        gl.uniformMatrix3fv(uMVP, gl.False, M);
-        gl.uniform3fv(uColour, colours.green);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        drawSquare(M, colours.green);
     });
   };
 

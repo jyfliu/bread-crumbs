@@ -171,8 +171,8 @@ def gen_dungeon(
             continue
           # check to make sure other connection is wide enough
           # corridor width in x and y directions resp.
-          cw_x = abs(dy * offset) - 1
-          cw_y = abs(dx * offset) - 1
+          cw_x = abs(dy * offset)
+          cw_y = abs(dx * offset)
           if (visited[ox-cw_x:ox+cw_x+1, oy-cw_y:oy+cw_y+1] == other_colour).all():
             dir = (dx, dy)
             done = True
