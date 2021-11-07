@@ -87,7 +87,7 @@ class Game:
       )
 
   def spawn_enemy(self, player):
-    enemy = entity.Snake(self, player)
+    enemy = entity.Bat(self, player)
     self.add_entity(enemy)
 
   async def tick(self, delta):

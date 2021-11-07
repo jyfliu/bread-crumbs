@@ -265,6 +265,7 @@ class Enemy(Entity):
     self.hp = 15
     self.dmg = 5 # do 5 damage
     self.flash_cooldown = 0 # tmp: damage flash demo purposes
+    self.stun_duration = 0
     # graphics
     self.sprite_id = 0
     # game stuff
@@ -273,8 +274,10 @@ class Enemy(Entity):
     self.target = target
 
   def move(self, delta):
-    self.x += (self.speed * self.dx) * delta
-    self.y += (self.speed * self.dy) * delta
+    self.stun_duration -= 1
+    if self.stun_duration <= 0:
+      self.x += (self.speed * self.dx) * delta
+      self.y += (self.speed * self.dy) * delta
 
   def tick(self, delta):
     if self.hp <= 0:
@@ -294,6 +297,7 @@ class Enemy(Entity):
     # tmp: damage flash for demp purposes
     self.sprite_id = 0
     self.flash_cooldown = 5
+    self.stun_duration = 10
     return True
 
 class Cactus(Enemy):
