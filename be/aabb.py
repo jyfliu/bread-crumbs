@@ -4,6 +4,13 @@ def intersect(ax, ay, aw, ah, bx, by, bw, bh):
   # returns if two AABBs intersect
   return ax < bx + bw and ax + aw > bx and ay < by + bh and ay + ah > by
 
+
+def _fix_rounding_error(x):
+  if abs(x) < 0.000001:
+    return 0
+  else:
+    return x
+
 def collide_and_slide(
     dx, dy, # velocity
     ax, ay, aw, ah,
@@ -22,7 +29,7 @@ def collide_and_slide(
   yt = abs(yoverlap / (dy + 0.000001))
 
   if xt < yt:
-    return (dx - math.copysign(xoverlap, dx), dy)
+    return (_fix_rounding_error(dx - math.copysign(xoverlap, dx)), dy)
   else:
-    return (dx, dy - math.copysign(yoverlap, dy))
+    return (dx, _fix_rounding_error(dy - math.copysign(yoverlap, dy)))
 

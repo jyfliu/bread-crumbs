@@ -156,7 +156,7 @@ class Player(Entity): # TODO move this
       self.recovery_cooldown -= 1
       return False
     self.hp -= dmg
-    # tmp: damage flash for demp purposes
+    # tmp: damage flash for demo purposes
     self.sprite_id = 0
     self.flash_cooldown = 5
     self.recovery_cooldown = 5
