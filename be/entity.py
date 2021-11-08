@@ -150,7 +150,7 @@ class Player(Entity): # TODO move this
     if self.is_rolling():
       return False
     self.hp -= dmg
-    # tmp: damage flash for demp purposes
+    # tmp: damage flash for demo purposes
     self.sprite_id = 0
     self.flash_cooldown = 5
     return True
