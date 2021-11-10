@@ -8,10 +8,11 @@ const vertexShaderText = [
   'attribute vec2 pos;',
   'attribute vec2 uv;',
   'uniform mat3 uMVP;',
+  'uniform mat3 uSprite;',
   'varying highp vec2 vTextureCoord;',
   'void main() {',
   '  gl_Position = vec4((uMVP * vec3(pos, 1.0)).xy, 0.0, 1.0);',
-  '  vTextureCoord = uv;',
+  '  vTextureCoord = (uSprite * vec3(uv, 1.0)).xy;',
   '}',
 ].join('\n');
 
@@ -25,52 +26,88 @@ const fragmentShaderText = [
 ].join('\n');
 
 // Load textures
-const isPowerOf2 = (val) => { return value & (value - 1) === 0; };
+const isPowerOf2 = (val) => { return val & (val - 1) === 0; };
 const loadTexture = (gl, url) => {
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+  // load texture returns as promise which, when awaited, loads the specified image
+  // it is also possible to return a temporary texture while loading
 
-  // temporary texture while loading
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0, // level
-    gl.RGBA, // internal format
-    2, 2, // width, height
-    0, // border (?)
-    gl.RGBA, // source format
-    gl.UNSIGNED_BYTE, // source
-    new Uint8Array([ // pixels
-      255, 0, 255, 255,
-      0, 0, 0, 255,
-      255, 0, 255, 255,
-      0, 0, 0, 255,
-    ]),
-  );
-
-  const image = new Image();
-  image.onload = () => {
+  return new Promise(resolve => {
+    const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-                  srcFormat, srcType, image);
 
-    // WebGL1 has different requirements for power of 2 images
-    // vs non power of 2 images so check if the image is a
-    // power of 2 in both dimensions.
-    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-       // Yes, it's a power of 2. Generate mips.
-       gl.generateMipmap(gl.TEXTURE_2D);
-    } else {
-       // No, it's not a power of 2. Turn off mips and set
-       // wrapping to clamp to edge
-       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    }
-  };
-  image.src = url;
+    // temporary texture while loading
+    /*
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0, // level
+      gl.RGBA, // internal format
+      2, 2, // width, height
+      0, // border (?)
+      gl.RGBA, // source format
+      gl.UNSIGNED_BYTE, // source
+      new Uint8Array([ // pixels
+        255, 0, 255, 255,
+        0, 0, 0, 255,
+        255, 0, 255, 255,
+        0, 0, 0, 255,
+      ]),
+    );
+    */
 
-  return texture;
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
+                    gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+      // WebGL1 has different requirements for power of 2 images
+      // vs non power of 2 images so check if the image is a
+      // power of 2 in both dimensions.
+      if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+         // Yes, it's a power of 2. Generate mips.
+         gl.generateMipmap(gl.TEXTURE_2D);
+      } else {
+         // No, it's not a power of 2. Turn off mips and set
+         // wrapping to clamp to edge
+         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      }
+      texture.width = image.width;
+      texture.height = image.height;
+
+      resolve(texture);
+    };
+    image.src = url;
+  });
 };
+
+class SpriteSheet {
+  constructor(texture, width, height) { // width and height of one square
+    this.texture = texture;
+    this.width = width;
+    this.height = height;
+    this.sheet_width = texture.width / width;
+    this.sheet_height = texture.height / height;
+    this.sprites = new Array(this.sheet_width).fill(0).map(() => new Array(this.sheet_height))
+    for (let i = 0; i < this.sheet_width; ++i) {
+      for (let j = 0; j < this.sheet_height; ++j) {
+        let transform = mat3.create();
+        mat3.fromTranslation(transform, [i/this.sheet_width, j/this.sheet_height]);
+        mat3.scale(transform, transform, [1./this.sheet_width, 1./this.sheet_height, 1.]);
+        this.sprites[i][j] = [texture, transform];
+      }
+    }
+  }
+
+  get(i, j) {
+    return this.sprites[i][j];
+  }
+
+}
+
 const loadColourTexture = (gl, r, g, b) => {
   // colour is given as an rgba array like [0xff, 0xff, 0xff, 0xff]
   const texture = gl.createTexture();
@@ -90,11 +127,6 @@ const loadColourTexture = (gl, r, g, b) => {
   return texture;
 };
 
-const keys = {};
-let keysChanged = false;
-let world = [[]];
-let entities = [];
-let healths = [];
 let sprites = [ // TODO improve sprite loading system
   0xff0000,
   0x00cc00,
@@ -115,6 +147,15 @@ const colours = {
   black: 0x000000,
   white: 0xffffff,
 };
+
+const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 .!?";
+let fontTex;
+
+const keys = {};
+let keysChanged = false;
+let world = [[]];
+let entities = [];
+let healths = [];
 
 // position
 let camX = 0.;
@@ -187,7 +228,7 @@ class Entity {
   }
 };
 
-const main = () => {
+const main = async () => {
 
   const canvas = document.getElementById('game-canvas');
   const gl = canvas.getContext('webgl');
@@ -202,6 +243,8 @@ const main = () => {
     alert('Your browser does not support WebGL');
   }
 
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.clearColor(0.75, 0.85, 0.8, 1.0);
 
   // init shaders
@@ -272,6 +315,11 @@ const main = () => {
       (colour & 0x0000ff) >>  0, // b
     );
   });
+  fontTex = await loadTexture(gl, "https://jeffr.ee/breadcrumbs/pixefont.png");
+  let fontSS = new SpriteSheet(fontTex, 10, 10);
+
+  sprites[1] = fontSS.get(7, 0);
+  sprites[2] = fontSS.get(6, 0);
 
   // init buffers
   const drawBuffer = gl.createBuffer();
@@ -299,12 +347,12 @@ const main = () => {
   const texCoordBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-    1, 1,
     1, 0,
-    0, 0,
     1, 1,
     0, 1,
+    1, 0,
     0, 0,
+    0, 1,
   ]), gl.STATIC_DRAW);
 
   const uvAttr = gl.getAttribLocation(program, 'uv');
@@ -319,9 +367,16 @@ const main = () => {
   gl.enableVertexAttribArray(uvAttr);
 
   const uMVP = gl.getUniformLocation(program, 'uMVP');
+  const uSprite = gl.getUniformLocation(program, 'uSprite');
   const uSampler = gl.getUniformLocation(program, 'uSampler');
 
-  const drawSquare = (MVP, texture) => {
+  const drawSquare = (MVP, texture, spriteLoc) => {
+    if (Array.isArray(texture)) {
+      spriteLoc = texture[1];
+      texture = texture[0];
+    }
+    if (spriteLoc === undefined) spriteLoc = mat3.create();
+    gl.uniformMatrix3fv(uSprite, gl.False, spriteLoc);
     gl.uniformMatrix3fv(uMVP, gl.False, MVP);
     // texture
     gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
@@ -348,9 +403,10 @@ const main = () => {
 
     cameraSmoothCD(dt);
     // update view and projection matrices
+    let P = mat3.create();
+    mat3.fromScaling(P, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
     let VP = mat3.create();
-    mat3.scale(VP, VP, [1./halfCamW, 1./halfCamH, 1.0]); // project to screen position
-    mat3.translate(VP, VP, [-camX, -camY]); // translate model to camera position
+    mat3.translate(VP, P, [-camX, -camY]); // translate model to camera position
     let M = mat3.create();
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
