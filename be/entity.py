@@ -209,6 +209,7 @@ class Bullet(Entity):
     # game info
     self.speed = 25
     self.dmg = 5 # do 5 damage
+    self.pierce = 1 # how many enemies the bullet can hit before disappearing
     self.lifespan = 120
     # graphics
     self.sprite_id = 0
@@ -231,21 +232,19 @@ class Bullet(Entity):
   def collide(self, other):
     if self.src == other:
       return
+    if self.pierce <= 0:
+      return
     if other.damage(self.dmg):
-      self.destroy(other.x, other.y)
+      self.pierce -= 1
+      self.dmg = 0
+      if self.pierce <= 0:
+        self.destroy(other.x, other.y)
 
   def collide_tile(self, tiles):
     self.destroy(self.x, self.y) # TODO return self.x self.y with one calculated from tiles
 
   def damage(self, dmg):
     return False
-
-
-# TODO:
-#   Map button to spawn enemy
-#   Make enemy tick
-#   Maybe have to take a look at how sprites work
-
 
 
 class Enemy(Entity):
@@ -262,6 +261,7 @@ class Enemy(Entity):
     self.speed = 0
     # combat
     self.hp = 15
+    self.max_hp = 15
     self.dmg = 5 # do 5 damage
     self.flash_cooldown = 0 # tmp: damage flash demo purposes
     self.stun_duration = 0
@@ -300,25 +300,24 @@ class Enemy(Entity):
     return True
 
   def collide_tile(self, tiles):      # pasted from player
+    tiles.sort(key=lambda t: abs(t[0] + t[2]/2.- self.x) + abs(t[1] + t[3]/2. - self.y))
     for tile_x, tile_y, tile_w, tile_h in tiles:
-      # undo prev move
-      self.x -= self.dx
-      self.y -= self.dy
       # calculate slide
-      self.dx, self.dy = aabb.collide_and_slide(
+      dx, dy = aabb.collide_and_slide(
         self.dx, self.dy,
         self.aabb_x, self.aabb_y, self.aabb_w, self.aabb_h,
         tile_x, tile_y, tile_w, tile_h,
       )
       # update pos
-      self.x += self.dx
-      self.y += self.dy
+      self.x += dx
+      self.y += dy
       self.update_aabb()
 
 class Cactus(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
     self.hp = 60
+    self.max_hp = 60
     self.dmg = 5
 
   def move(self, delta):
@@ -328,6 +327,7 @@ class Slug(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
     self.hp = 15
+    self.max_hp = 15
     self.dmg = 5
     self.speed = 5
     self.dx = -1
@@ -344,6 +344,7 @@ class Ant(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
     self.hp = 25
+    self.max_hp = 25
     self.dmg = 10
     self.speed = 5
     self.dx = -1
@@ -371,6 +372,7 @@ class Bat(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
     self.hp = 25
+    self.max_hp = 25
     self.dmg = 5
     self.speed = 5
     self.dx = 0
@@ -379,8 +381,9 @@ class Bat(Enemy):
   def move(self, delta):
     x_dist = self.target.x - self.x
     y_dist = self.target.y - self.y
-    self.dx = x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
-    self.dy = y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+    if x_dist != 0 or y_dist != 0:
+      self.dx = x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+      self.dy = y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
     super().move(delta)
 
   def collide_tile(self, tiles):    # disabling wall collision for "flying" enemy
@@ -390,6 +393,7 @@ class Mouse(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
     self.hp = 25
+    self.max_hp = 25
     self.dmg = 5
     self.speed = 3
     self.dx = 0
@@ -398,14 +402,16 @@ class Mouse(Enemy):
   def move(self, delta):
     x_dist = self.target.x - self.x
     y_dist = self.target.y - self.y
-    self.dx = -x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)  # might want to double check the math on this
-    self.dy = -y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+    if x_dist != 0 or y_dist != 0:
+      self.dx = -x_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
+      self.dy = -y_dist / math.sqrt(x_dist ** 2 + y_dist ** 2)
     super().move(delta)
 
 class Snake(Enemy):
   def __init__(self, game, target):
     super().__init__(game, target)
     self.hp = 25
+    self.max_hp = 25
     self.dmg = 5
     self.speed = 7
     self.dx = 0
@@ -420,15 +426,20 @@ class Snake(Enemy):
       y_dist = self.target.y - self.y
 
       rand = random.randint(1,3)
-      if rand == 1 or y_dist == 0:
-        self.dx = x_dist / abs(x_dist)
+      if x_dist == 0 and y_dist != 0:
+        rand = 2
+      if y_dist == 0 and x_dist != 0:
+        rand = 1
+
+      if rand == 1:
+        self.dx = math.copysign(1, x_dist)
         self.dy = 0
-      elif rand == 2 or x_dist == 0:
+      elif rand == 2:
         self.dx = 0
-        self.dy = y_dist / abs(y_dist)
+        self.dy = math.copysign(1, y_dist)
       else:
-        self.dx = x_dist / (2 * abs(x_dist))
-        self.dy = y_dist / (2 * abs(y_dist))
+        self.dx = 2 ** -0.5 * math.copysign(1, x_dist)
+        self.dy = 2 ** -0.5 * math.copysign(1, y_dist)
 
     super().move(delta)
 

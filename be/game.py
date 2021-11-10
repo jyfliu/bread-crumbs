@@ -77,6 +77,8 @@ class Game:
 
   def spawn_enemy(self, player):
     enemy = entity.Snake(self, player)
+    enemy.x = self.world.spawnx
+    enemy.y = self.world.spawny
     self.add_entity(enemy)
 
   async def tick(self, delta):
@@ -138,7 +140,7 @@ class Game:
       ticks += 1
       if ticks % 60 == 0:
         now = time.time()
-        print(f"TPS: {self.config.tps / (now - last_print_time):.2f}")
+        print(f"TPS: {self.config.tps / (now - last_print_time):.2f} entities: {len(self.entities)}")
         last_print_time = now
       now = time.time()
       while now < next_tick_target:

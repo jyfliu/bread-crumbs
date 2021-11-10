@@ -10,12 +10,10 @@ class World:
   def __init__(self, tiles, tile_to_sprite_id=lambda x: x, spawnx=0, spawny=0):
     tiles = np.asarray(tiles) # convert to array if not already
     self.tiles = tiles
+    self.width, self.height = self.tiles.shape
 
     # compute bounding boxes
     xi, yi = (tiles % 2).nonzero() # odd tiles have collision boxes
-    self.aabbs = [] # TODO turn into quad tree, and maybe merge adjacent tiles to one aabb
-    for x, y in zip(xi, yi):
-      self.aabbs.append((x - 0.5, y - 0.5))
 
     # compute renderable data
     self.render = np.vectorize(tile_to_sprite_id)(self.tiles).tolist()
@@ -26,10 +24,14 @@ class World:
 
 
   def intersect(self, aabb_x, aabb_y, aabb_w, aabb_h):
+    x_lo = max(int(aabb_x + 0.5), 0)
+    y_lo = max(int(aabb_y + 0.5), 0)
+    x_hi = min(int(aabb_x + aabb_w + 0.5) + 1, self.width)
+    y_hi = min(int(aabb_y + aabb_h + 0.5) + 1, self.height)
+    candidates = self.tiles[x_lo:x_hi, y_lo:y_hi]
     intersects = []
-    for x, y in self.aabbs:
-      if aabb.intersect(aabb_x, aabb_y, aabb_w, aabb_h, x, y, 1, 1):
-        intersects.append((x, y, 1, 1))
+    for x, y in np.stack((candidates % 2 != 0).nonzero(), axis=1):
+      intersects.append((x_lo + x - 0.5, y_lo + y - 0.5, 1, 1))
     return intersects
 
 def gen_dungeon(

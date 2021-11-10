@@ -143,6 +143,7 @@ class Laser:
     )
     bullet.lifespan = self.laser_lifespan
     bullet.dmg = self.laser_dmg
+    bullet.pierce = 1000
     bullet.speed = 0
     if shoot_dx:
       bullet.w *= self.laser_length
