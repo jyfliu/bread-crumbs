@@ -29,7 +29,7 @@ def collide_and_slide(
   yt = abs(yoverlap / (dy + 0.000001))
 
   if xt < yt:
-    return (_fix_rounding_error(dx - math.copysign(xoverlap, dx)), dy)
+    return (math.copysign(xoverlap, ax-bx), 0)
   else:
-    return (dx, _fix_rounding_error(dy - math.copysign(yoverlap, dy)))
+    return (0, math.copysign(yoverlap, ay-by))
 

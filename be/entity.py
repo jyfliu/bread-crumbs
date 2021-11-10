@@ -174,18 +174,15 @@ class Player(Entity): # TODO move this
   def collide_tile(self, tiles):
     tiles.sort(key=lambda t: abs(t[0] + t[2]/2.- self.x) + abs(t[1] + t[3]/2. - self.y))
     for tile_x, tile_y, tile_w, tile_h in tiles:
-      # undo prev move
-      self.x -= self.dx
-      self.y -= self.dy
       # calculate slide
-      self.dx, self.dy = aabb.collide_and_slide(
+      dx, dy = aabb.collide_and_slide(
         self.dx, self.dy,
         self.aabb_x, self.aabb_y, self.aabb_w, self.aabb_h,
         tile_x, tile_y, tile_w, tile_h,
       )
       # update pos
-      self.x += self.dx
-      self.y += self.dy
+      self.x += dx
+      self.y += dy
       self.update_aabb()
 
 
